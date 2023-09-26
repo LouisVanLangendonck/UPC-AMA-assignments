@@ -230,7 +230,7 @@ for (b in b_seq) {
   hx_f <- stepfun(hx$breaks,c(0,hx$density,0))
   y_hist <- hx_f(x)
   y_loo_hist <- (y_hist-(1/(length(x)*b)))*(length(x)/(length(x)-1))
-  if (any(y_loo_hist==0)) {
+  if (any(y_loo_hist<=0)) {
     b_loo_log_likelihood <- c(b_loo_log_likelihood,-Inf)
   }
   else {
@@ -244,7 +244,7 @@ plot(b_seq,b_loo_log_likelihood, pch=16, xlab='Bin Width', ylab = 'log likelihoo
 b_ml <- b_seq[which.max(b_loo_log_likelihood)]
 ```
 
-From this experiment, the leave-one-out cross-validation max log likelihood method selects b = `r`b_optimal\` as the optimal value for b (out of the proposed values for b). The corresponding histogram can be found below.
+From this experiment, the leave-one-out cross-validation max log likelihood method selects b = `r`b_ml` as the optimal value for b (out of the proposed values for b). The corresponding histogram can be found below.
 
 ```{r}
 hx <- hist(x,breaks=seq(A,Z+b,by=b_ml), plot=F)
@@ -254,6 +254,8 @@ plot(hx,freq = FALSE)
 The two proposed values for b are substantially different. The corresponding histograms/kernel density estimators clearly show the difference the choice of b makes: the corresponding patterns seem to give quite a different view on the data. Using Scott's formula, the mixture of two distributions (here gaussians) is not at all clearly visible, while the max-likelihood method's bin width seems to highlight more the presence of two distinct patterns.
 
 #### 8.
+
+In this exercise, the *gaussian* kernel is used and its bandwidth found similarly to the bin width in the previous exercises. A wide range of bandwidth values are proposed (from 0.1 to 1 with steps of 0.01) and the a plot of each leave-one-out log-likelihood provided.
 
 ```{r}
 h_seq <- seq(0.1,1, by=0.01)
@@ -273,8 +275,10 @@ plot(h_seq,h_loo_log_likelihood, pch=16, xlab='Kernel Bandwidth', ylab = 'log li
 h_ml <- h_seq[which.max(h_loo_log_likelihood)]
 ```
 
+From this experiment, it becomes clear that the optimal max likelihood value for h is `r h_ml`. The corresponding density function is plotted below.
+
 ```{r}
 kx <- density(x,bw=h_ml,kernel='gaussian')
 kx_f <- approxfun(x=kx$x, y=kx$y, method='linear', rule=2)
-plot(kx$x, kx$y, xlab='x', ylab = 'Gaussian kd-estimation')
+plot(kx$x, kx$y, xlab='x', ylab = 'density', main = 'Gaussian Kernel Density Estimation')
 ```
