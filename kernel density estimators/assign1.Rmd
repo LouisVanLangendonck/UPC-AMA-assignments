@@ -1,6 +1,6 @@
 ---
 title: "Density estimation: Bandwidth choice by leave-one-out maximum likelihood"
-author: "Louis Van Langendonck"
+author: "Louis Van Langendonck Antonin Rosa"
 date: "2023-09-23"
 output: html_document
 ---
