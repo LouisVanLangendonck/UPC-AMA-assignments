@@ -1,0 +1,284 @@
+---
+title: "Density estimation: Bandwidth choice by leave-one-out maximum likelihood"
+author: "Louis Van Langendonck Antonin Rosa"
+date: "2023-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Histogram
+
+#### 1.
+
+Consider the kernel density estimator at $x_i$ using all the observations : $$
+\hat{f}_{hist}(x_i) = \frac{1}{nb} \sum_{k=1}^n I_{B_{j\left(x_k\right)}}(x_i) $$. Which can be rewritten as: $$
+\hat{f}_{hist}(x_i) = \frac{1}{nb} \left(1 + \sum_{k \neq i}^n I_{B_{j\left(x_k\right)}}(x_i) \right) $$. Now consider the expression for the leave-one-out likelihood of observation $x_i$ (so computed by all other elements in the sample): $$ \hat{f}_{hist, (-i)}(x_i) = \frac{1}{(n-1)b} \sum_{k \neq i}^n I_{B_{j\left(x_k\right)}}(x_i) $$, which can then be rewritten using the previously derived formula for $\hat{f}_{hist}(x_i)$ to the final expression: $$ \hat{f}_{hist, (-i)}(x_i) = \left(\frac{n}{n-1}\right) \left( \hat{f}_{hist}(x_i) - \frac{1}{nb} \right)$$.
+
+#### 2-3.
+
+```{r}
+cdrate.df <- read.table("cdrate.dat")
+x <- cdrate.df[,1]
+
+A <- min(x)-.05*diff(range(x)) 
+Z <- max(x)+.05*diff(range(x))
+nbr <- 7
+
+hx <- hist(x,breaks=seq(A,Z,length=nbr+1),freq=F)
+binwidth <- hx$breaks[2]-hx$breaks[1]
+hx_f <- stepfun(hx$breaks,c(0,hx$density,0))
+y_hist <- hx_f(x)
+points(x,y_hist,col="red", pch=1)
+
+y_loo_hist <- (y_hist-(1/(length(x)*binwidth)))*(length(x)/(length(x)-1))
+points(x,y_loo_hist,col="blue", pch=1)
+
+par(xpd=TRUE)
+legend( x="topleft", 
+        legend=c(expression("f_hist"),"f_hist l-o-o"),
+        col=c("red","blue"), pch=c(1,1))
+```
+
+#### 4.
+
+The sample log-likelihood function is calculated using $l_{C V}(b)=\sum_{i=1}^n \log \hat{f}_{hist,(-i)}\left(x_i\right)$.
+
+```{r}
+loo_log_likelihood <- sum(log(y_loo_hist))
+```
+
+If we apply this to our data and estimators (where the binsize b is equal to `r binwidth`), the result is $l_{C V}(b)=$`r loo_log_likelihood`.
+
+#### 5.
+
+```{r}
+nbr_seq <- seq(1,15)
+nbr_loo_log_likelihood <- c()
+for (nbr in nbr_seq) {
+  hx <- hist(x,breaks=seq(A,Z,length=nbr+1),plot=F)
+  binwidth <- hx$breaks[2]-hx$breaks[1]
+  hx_f <- stepfun(hx$breaks,c(0,hx$density,0))
+  y_hist <- hx_f(x)
+  y_loo_hist <- (y_hist-(1/(length(x)*binwidth)))*(length(x)/(length(x)-1))
+  if (any(y_loo_hist==0)) {
+    nbr_loo_log_likelihood <- c(nbr_loo_log_likelihood,-Inf)
+  }
+  else {
+    nbr_loo_log_likelihood <- c(nbr_loo_log_likelihood,sum(log(y_loo_hist)))
+  }
+}
+```
+
+Some of these log likelihoods will give -inf values. This happens when an observation has a leave-one-out likelihood of zero of which the log cannot be calculated.
+
+```{r}
+plot(nbr_seq,nbr_loo_log_likelihood, pch=16, xlab='amount of bins', ylab = 'log likelihood (leave-one-out)')
+```
+
+From the plot is becomes clear that, based on the leave-one-out max-likelihood metric, 5 bins is the optimal amount of bins (from the proposed sequence). The corresponding histogram is plotted below
+
+```{r}
+nbr_opt <- 5
+hx <- hist(x,breaks=seq(A,Z,length=nbr_opt+1),freq=F)
+```
+
+#### 6.
+
+Very similarly as the previous experiment, optimal kernel density estimator bandwidth is chosen. This time by directly varying bin width b instead of the amount of bins.
+
+```{r}
+b_seq <- seq((Z-A)/15,(Z-A)/1,length=30)
+b_loo_log_likelihood <- c()
+for (b in b_seq) {
+  hx <- hist(x,breaks=seq(A,Z+b,by=b), plot=F)
+  hx_f <- stepfun(hx$breaks,c(0,hx$density,0))
+  y_hist <- hx_f(x)
+  y_loo_hist <- (y_hist-(1/(length(x)*b)))*(length(x)/(length(x)-1))
+  if (any(y_loo_hist==0)) {
+    b_loo_log_likelihood <- c(b_loo_log_likelihood,-Inf)
+  }
+  else {
+    b_loo_log_likelihood <- c(b_loo_log_likelihood,sum(log(y_loo_hist)))
+  }
+}
+plot(b_seq,b_loo_log_likelihood, pch=16, xlab='Bin Width', ylab = 'log likelihood (leave-one-out)')
+```
+
+```{r}
+b_optimal <- b_seq[which.max(b_loo_log_likelihood)]
+```
+
+From the bin-width vs. log-likelihood plot it becomes clear that the optimal value for the bin width (of the proposed sequence) is `r b_optimal`. The corresponding histogram is as follows:
+
+```{r}
+hx <- hist(x,breaks=seq(A,Z+b,by=b_optimal), plot=F)
+plot(hx,freq = FALSE)
+```
+
+```{r mixt.normal, echo=FALSE}
+# graph.mixt
+# Input:
+#    k: number mixture components
+#    mu: vector of length k with the mean values of the k normals
+#    sigma: vector of length k with the st.dev. values of the k normals
+#    alpha: vector of length k with the weights of each normal
+#    graphic: logical value indicating if the mixture density must be plotted
+#    ...: Other parameters passed to plot()
+#
+# Output:
+#    L, U: extremes of the interval where the mixture density is plotted
+#    x: points at which the mixture density is evaluated 
+#    fx: value of the mixture density at x
+#
+graph.mixt<-
+function(k=1, mu=seq(-2*(k-1),2*(k-1),length=k), sigma=seq(1,1,length=k), alpha=seq(1/k,1/k,length=k), graphic=TRUE,...)
+{
+   L<-min(mu-3*sigma)
+   U<-max(mu+3*sigma)
+         
+   x<- seq(from=L,to=U,length=200)
+   fx<- 0*x
+   Salpha<-sum(alpha)
+   for(i in 1:k){
+   	p<-alpha[i]/Salpha
+#   	fx <- fx + p*exp(-.5*((x-mu[i])/sigma[i])^2)/(sqrt(2*pi)*sigma[i])
+   	fx <- fx + p*dnorm(x,mu[i],sigma[i])
+   }
+   if (graphic){
+      plot(x,fx,type="l",...)
+   }
+   return(list(L = L, U = U, x = x, fx = fx))
+}
+
+# sim.mixt
+# Input:
+#    n: number of simulated data
+#    k: number mixture components
+#    mu: vector of length k with the mean values of the k normals
+#    sigma: vector of length k with the st.dev. values of the k normals
+#    alpha: vector of length k with the weights of each normal
+#    graphic: logical value indicating if the mixture density and the 
+#              histogram of the simulated data must be plotted
+#    ...: Other parameters passed to plot()
+#
+# Output:
+#    x: simulated data
+#
+# Requires: 
+#    graph.mixt
+sim.mixt <- function(n=1,k=1, 
+         mu=seq(-2*(k-1),2*(k-1),length=k), 
+         sigma=seq(1,1,length=k), 
+         alpha=seq(1/k,1/k,length=k), graphic=FALSE,...)
+{
+   csa<-cumsum(alpha)
+   x<-runif(n)
+      
+   for (i in 1:n){
+      comp<-sum(csa<=x[i])+1
+      x[i]<-rnorm(1,mu[comp],sigma[comp])
+   }
+   if(graphic) {
+      out<-graph.mixt(k, mu, sigma, alpha, gr=FALSE)
+      hist(x,freq = FALSE,
+           ylim=c(0,max(c(max(out$fx),max(hist(x,plot=FALSE)$density)))))
+      lines(out$x,out$fx,lty=1,lwd=2)
+   }   
+   return(x)
+}
+```
+
+#### 7.
+
+Generate $n=100$ data from $$
+f(x) = (3/4)N(x; m = 0, s = 1) +(1/4) N(x; m = 3/2, s = 1/3)$$
+
+```{r}
+set.seed(123)
+n <- 100
+mu <- c(0,3/2)
+sigma <- c(1,1/3)
+alpha <- c(3/4,1/4)
+x <- sim.mixt(n=n, k=2, mu=mu, sigma=sigma, alpha=alpha, gr=T)
+points(x,0*x,pch="|")
+
+sigma.mixt <- 1.095287
+b_scott <- 3.49 * sigma.mixt * length(x)^(-1/3) 
+```
+
+First we use the Scott's formula to find a proposed value of b = `r b_scott` (calculations for this value can be found in `density_estimation.Rmd`). The corresponding histogram is as follows:
+
+```{r}
+A <- min(x)-.05*diff(range(x)) 
+Z <- max(x)+.05*diff(range(x))
+
+hx <- hist(x,breaks=seq(A,Z+b,by=b_scott), plot=F)
+plot(hx,freq = FALSE)
+```
+
+Now the Max-likelihood method is used. To consider a varied amount of proposals for b, the sequence of proposed b-values to select from is varied from 0.05 to 1.75 in steps of 0.01.
+
+```{r}
+b_seq = seq(0.05, 1.75, by=0.01)
+b_loo_log_likelihood <- c()
+
+for (b in b_seq) {
+  hx <- hist(x,breaks=seq(A,Z+b,by=b), plot=F)
+  hx_f <- stepfun(hx$breaks,c(0,hx$density,0))
+  y_hist <- hx_f(x)
+  y_loo_hist <- (y_hist-(1/(length(x)*b)))*(length(x)/(length(x)-1))
+  if (any(y_loo_hist<=0)) {
+    b_loo_log_likelihood <- c(b_loo_log_likelihood,-Inf)
+  }
+  else {
+    b_loo_log_likelihood <- c(b_loo_log_likelihood,sum(log(y_loo_hist)))
+  }
+}
+plot(b_seq,b_loo_log_likelihood, pch=16, xlab='Bin Width', ylab = 'log likelihood (leave-one-out)')
+```
+
+```{r}
+b_ml <- b_seq[which.max(b_loo_log_likelihood)]
+```
+
+From this experiment, the leave-one-out cross-validation max log likelihood method selects b = `r`b_ml` as the optimal value for b (out of the proposed values for b). The corresponding histogram can be found below.
+
+```{r}
+hx <- hist(x,breaks=seq(A,Z+b,by=b_ml), plot=F)
+plot(hx,freq = FALSE)
+```
+
+The two proposed values for b are substantially different. The corresponding histograms/kernel density estimators clearly show the difference the choice of b makes: the corresponding patterns seem to give quite a different view on the data. Using Scott's formula, the mixture of two distributions (here gaussians) is not at all clearly visible, while the max-likelihood method's bin width seems to highlight more the presence of two distinct patterns.
+
+#### 8.
+
+In this exercise, the *gaussian* kernel is used and its bandwidth found similarly to the bin width in the previous exercises. A wide range of bandwidth values are proposed (from 0.1 to 1 with steps of 0.01) and the a plot of each leave-one-out log-likelihood provided.
+
+```{r}
+h_seq <- seq(0.1,1, by=0.01)
+h_loo_log_likelihood <- c()
+
+for (h in h_seq) {
+  kx <- density(x,bw=h,kernel='gaussian')
+  kx_f <- approxfun(x=kx$x, y=kx$y, method='linear', rule=2)
+  y_density <- kx_f(x)
+  y_loo_density <- (y_density-(1/(sqrt(2*pi)*length(x)*h)))*(length(x)/(length(x)-1))
+  
+    h_loo_log_likelihood <- c(h_loo_log_likelihood,sum(log(y_loo_density)))
+}
+
+plot(h_seq,h_loo_log_likelihood, pch=16, xlab='Kernel Bandwidth', ylab = 'log likelihood (leave-one-out)')
+
+h_ml <- h_seq[which.max(h_loo_log_likelihood)]
+```
+
+From this experiment, it becomes clear that the optimal max likelihood value for h is `r h_ml`. The corresponding density function is plotted below.
+
+```{r}
+kx <- density(x,bw=h_ml,kernel='gaussian')
+kx_f <- approxfun(x=kx$x, y=kx$y, method='linear', rule=2)
+plot(kx$x, kx$y, xlab='x', ylab = 'density', main = 'Gaussian Kernel Density Estimation')
+```

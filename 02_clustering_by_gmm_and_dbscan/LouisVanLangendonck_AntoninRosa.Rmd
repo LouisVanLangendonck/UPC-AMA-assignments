@@ -1,0 +1,11 @@
+---
+title: "Density estimation. GMM. DBSCAN (Assignment)"
+author: "Louis Van Langendonck & Antonin Rosa"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
