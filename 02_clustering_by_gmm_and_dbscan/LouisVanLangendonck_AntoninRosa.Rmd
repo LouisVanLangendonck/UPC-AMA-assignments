@@ -17,20 +17,57 @@ pairs(X)
 
 ## 1. model based clustering assuming a Gaussian Mixture Model
 
+Using the G parameter in the `Mclust` function, options for K are set between 2 and 6. It automatically selects the model with the highest BIC score. Moreover, the BIC plot Via the `modelNames` parameter, mixture components are allowed variation in volume, shape, and orientation. The 'BIC'-plot shows that K = 3 scores the best and is thus the choice of K the model automatically continues with. The classification, uncertainty and density plots use this value of K
+
 ```{r}
 library(mclust)
 GMM <- Mclust(X,G=2:6,modelNames="VVV")
-plot(GMM_3, "BIC")
-plot(GMM_3, "classification")
-plot(GMM_3, "uncertainty")
-plot(GMM_3, "density")
-#summary(GMM,parameters=TRUE)
+plot(GMM, "BIC")
+plot(GMM, "classification")
+plot(GMM, "uncertainty")
+plot(GMM, "density")
 ```
 
+## 2. Compare the previous density plot with the non-parametric density estimation of (temp,casual).
+
+Comparing these plots, it becomes clear both show a similar profile. However the GMM model (left) yields a clear distinction in three gaussian shapes (as typically predicted in this type of model), while the non-param model (right) shows more arbitrary outlines.
+
 ```{r}
-plot(GMM_3, "BIC")
-plot(GMM_3, "classification")
-plot(GMM_3, "uncertainty")
-plot(GMM_3, "density")
+library(sm)
+a <- 0.25
+h_prop <- a*c(sd(X[,"temp"]), sd(X[,"casual"]))
+plot(GMM,"density",main="GMM")
+sm.density(X,h_prop,display="slice",main="Non-param Denisty Estimator")
+```
+
+## 3. Non-param density estimation of each of the clusters
+
+```{r}
+clust.ind <- GMM$classification
+plot(X,col=clust.ind)
+for (j in 1:3){
+  cl.j <- (clust.ind==j)
+  sm.density(X[cl.j,],h=0.4*c(sd(X[cl.j,"temp"]),sd(X[cl.j,"casual"])),display="slice",props=c(75),col=j, cex=4, add=TRUE)
+}
+```
+
+## 4. Component merging
+
+```{r}
+library(fpc)
+GMMbic <- mclustBIC(X,G=3,modelnames='VVV')
+GMMmerge <- fpc::mergenormals(X,summary(GMMbic,X),method = "bhat")
+GMMmerge.ind <- GMMmerge$clustering
+plot(X,col=GMMmerge.ind)
+```
+
+## 5. Non-param density estimation of each of the new, merged clusters
+
+```{r}
+plot(X,col=GMMmerge.ind)
+for (j in 1:2){
+  cl.j <- (GMMmerge.ind==j)
+  sm.density(X[cl.j,],h=0.4*c(sd(X[cl.j,"temp"]),sd(X[cl.j,"casual"])),display="slice",props=c(75),col=j, cex=4, add=TRUE)
+}
 ```
 
