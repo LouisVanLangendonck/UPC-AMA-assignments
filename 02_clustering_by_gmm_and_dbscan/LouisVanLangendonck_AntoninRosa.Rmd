@@ -2,7 +2,10 @@
 title: "Density estimation. GMM. DBSCAN (Assignment)"
 author: "Louis Van Langendonck & Antonin Rosa"
 date: "`r format(Sys.time(), '%d/%b/%Y')`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -34,9 +37,9 @@ Comparing these plots, it becomes clear both show a similar profile. However the
 
 ```{r}
 library(sm)
+plot(GMM,"density",main="GMM")
 a <- 0.25
 h_prop <- a*c(sd(X[,"temp"]), sd(X[,"casual"]))
-plot(GMM,"density",main="GMM")
 sm.density(X,h_prop,display="slice",main="Non-param Denisty Estimator")
 ```
 
@@ -71,3 +74,57 @@ for (j in 1:2){
 }
 ```
 
+
+## 6. DBScan
+
+```{r}
+library(dbscan)
+library(cluster)
+
+Xs <- scale(X)
+
+eps_values <- c(0.25, 0.5)
+minPts_values <- c(10, 15, 20)
+results <- data.frame()
+
+best_silhouette <- -Inf
+best_eps <- NULL
+best_minPts <- NULL
+
+for (eps in eps_values) {
+  for (minPts in minPts_values) {
+    dbscan_result <- dbscan(Xs, eps = eps, minPts = minPts)
+    
+    # Vérifiez s'il y a plus d'un cluster
+    print(max(dbscan_result$cluster))
+    if (max(dbscan_result$cluster) > 1) {
+      silhouette_avg <- silhouette(dbscan_result$cluster, dist(Xs))
+      avg_silhouette <- mean(silhouette_avg[, "sil_width"])
+      
+      results <- rbind(results, data.frame(eps = eps, minPts = minPts, silhouette = avg_silhouette))
+    
+      if (avg_silhouette > best_silhouette) {
+        best_silhouette <- avg_silhouette
+        best_eps <- eps
+        best_minPts <- minPts
+      }
+    }
+  }
+}
+
+cat("Best combination of parameters:\n")
+cat("Epsilon:", best_eps, "\n")
+cat("MinPts:", best_minPts, "\n")
+
+dbscan_result <- dbscan(Xs, eps = best_eps, minPts = best_minPts)
+plot(Xs, col = dbscan_result$cluster, pch = 19, main = "DBSCAN Clustering")
+
+contingency_table <- table(dbscan = dbscan_result$cluster, GMM = GMMmerge.ind)
+
+print(contingency_table)
+
+```
+
+Even though DBSCAN Cluster 0 (representing noise or unclustered data) is attributed to two distinct clusters by GMM (GMM Cluster 0 and GMM Cluster 1), the total number of points in this cluster is relatively low (7 points in total).
+
+Overall, these results indicate a strong similarity between the clustering results of DBSCAN and GMM for most observations. Ambiguity is primarily found in DBSCAN Cluster 0, representing noise or unclustered data. This similarity may suggest that both methods are uncovering similar data structures, at least for the data that is meaningfully clustered.
