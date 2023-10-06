@@ -4,4 +4,4 @@ All assignments of the Advanced Multivariate Analysis course (2023/2024) at the 
 
 ### Authors
 
-Louis Van Langendonck & Antonin Rosa
+Albert Martin, Louis Van Langendonck & Antonin Rosa
