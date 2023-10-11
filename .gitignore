@@ -1,4 +1,8 @@
 *.pdf
 *.html
+*.RData
+*.Rhistory
 */*.pdf
 */*.html
+*/*.RData
+*/*.Rhistory
