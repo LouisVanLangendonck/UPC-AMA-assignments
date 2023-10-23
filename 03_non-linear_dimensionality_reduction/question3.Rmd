@@ -75,5 +75,42 @@ for (i in 1:9) {
 ### c).
 
 ```{r}
+LCMC_ISOMAP <- function(D1, D2, k) {
+  n <- nrow(D1)
+  N.Kp.i <- numeric(n)
+  
+  for (i in 1:n) {
+    N1.i <- sort(D1[i, ])[2:(k+1)]  # Prend les k plus proches voisins (ignorer soi-même)
+    N2.i <- sort(D2[i, ])[2:(k+1)]  # Prend les k plus proches voisins (ignorer soi-même)
+    N.Kp.i[i] <- length(intersect(N1.i, N2.i))
+  }
+  
+  N.Kp <- mean(N.Kp.i)
+  M.Kp.adj <- N.Kp / k - k / (n - 1)
+  
+  return(list(N.Kp.i = N.Kp.i, M.Kp.adj = M.Kp.adj))
+}
+
+# Données d'entrée pour ISOMAP
+D1_ISOMAP <- as.matrix(dist(zero_data))
+perplexity <- c(5, 10, 50)
+LC <- c(0, 0, 0)
+
+# Exploration des valeurs de k
+for (i in 1:length(perplexity)) {
+  isomap_result <- isomap(as.matrix(dist(zero_data)), ndim = 2, k = perplexity[i])
+  D2 <- as.matrix(dist(isomap_result$points))
+  LC[i] <- LCMC_ISOMAP(D1_ISOMAP, D2, perplexity[i])$M.Kp.adj
+}
+
+best_k <- perplexity[which.max(LC)]
+
+# Affichage de la valeur optimale de k
+cat("La meilleure valeur de k est:", best_k, "\n")
+
+# Affichage graphique de la configuration à basse dimension
+isomap_result <- isomap(as.matrix(dist(zero_data)), ndim = 2, k = best_k)
+plot(isomap_result$points, type = "n", xlab = "Dimension 1", ylab = "Dimension 2", main = "Isomap 2-Dimensional Configuration")
+points(isomap_result$points, pch = 20, col = "blue")
 
 ```
