@@ -1,0 +1,150 @@
+---
+title: "Density estimation. GMM. DBSCAN (Assignment)"
+author: "Louis Van Langendonck & Antonin Rosa"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("BikeDay.Rdata")
+X <- as.matrix(day[day$yr==1,c(10,14)])
+pairs(X)
+```
+
+## 1. model based clustering assuming a Gaussian Mixture Model
+
+Using the G parameter in the `Mclust` function, options for K are set between 2 and 6. It automatically selects the model with the highest BIC score. Moreover, the BIC plot Via the `modelNames` parameter, mixture components are allowed variation in volume, shape, and orientation. The 'BIC'-plot shows that K = 3 scores the best and is thus the choice of K the model automatically continues with. The classification, uncertainty and density plots use this value of K
+
+```{r}
+library(mclust)
+GMM <- Mclust(X,G=2:6,modelNames="VVV")
+plot(GMM, "BIC")
+plot(GMM, "classification")
+plot(GMM, "uncertainty")
+plot(GMM, "density")
+```
+
+## 2. Compare the previous density plot with the non-parametric density estimation of (temp,casual).
+
+Comparing these plots, it becomes clear both show a similar profile. However the GMM model (left) yields a clear distinction in three gaussian shapes (as typically predicted in this type of model), while the non-param model (right) shows more arbitrary outlines.
+
+```{r}
+library(sm)
+plot(GMM,"density",main="GMM")
+a <- 0.25
+h_prop <- a*c(sd(X[,"temp"]), sd(X[,"casual"]))
+sm.density(X,h_prop,display="slice",main="Non-param Denisty Estimator")
+```
+
+## 3. Non-param density estimation of each of the clusters
+
+```{r}
+clust.ind <- GMM$classification
+plot(X,col=clust.ind)
+for (j in 1:3){
+  cl.j <- (clust.ind==j)
+  sm.density(X[cl.j,],h=0.4*c(sd(X[cl.j,"temp"]),sd(X[cl.j,"casual"])),display="slice",props=c(75),col=j, cex=4, add=TRUE)
+}
+```
+
+## 4. Component merging
+
+```{r}
+library(fpc)
+GMMbic <- mclustBIC(X,G=3,modelnames='VVV')
+GMMmerge <- fpc::mergenormals(X,summary(GMMbic,X),method = "bhat")
+GMMmerge.ind <- GMMmerge$clustering
+plot(X,col=GMMmerge.ind)
+```
+
+## 5. Non-param density estimation of each of the new, merged clusters
+
+```{r}
+plot(X,col=GMMmerge.ind)
+for (j in 1:2){
+  cl.j <- (GMMmerge.ind==j)
+  sm.density(X[cl.j,],h=0.4*c(sd(X[cl.j,"temp"]),sd(X[cl.j,"casual"])),display="slice",props=c(75),col=j, cex=4, add=TRUE)
+}
+```
+
+
+## 6. DBScan
+
+```{r}
+library(dbscan)
+library(cluster)
+
+Xs <- scale(X)
+
+eps_values <- c(0.25, 0.5)
+minPts_values <- c(10, 15, 20)
+results <- data.frame()
+
+best_silhouette <- -Inf
+best_eps <- NULL
+best_minPts <- NULL
+
+for (eps in eps_values) {
+  for (minPts in minPts_values) {
+    dbscan_result <- dbscan(Xs, eps = eps, minPts = minPts)
+    
+    # Vérifiez s'il y a plus d'un cluster
+    print(max(dbscan_result$cluster))
+    if (max(dbscan_result$cluster) > 1) {
+      silhouette_avg <- silhouette(dbscan_result$cluster, dist(Xs))
+      avg_silhouette <- mean(silhouette_avg[, "sil_width"])
+      
+      results <- rbind(results, data.frame(eps = eps, minPts = minPts, silhouette = avg_silhouette))
+    
+      if (avg_silhouette > best_silhouette) {
+        best_silhouette <- avg_silhouette
+        best_eps <- eps
+        best_minPts <- minPts
+      }
+    }
+  }
+}
+
+cat("Best combination of parameters:\n")
+cat("Epsilon:", best_eps, "\n")
+cat("MinPts:", best_minPts, "\n")
+
+dbscan_result <- dbscan(Xs, eps = best_eps, minPts = best_minPts)
+plot(Xs, col = dbscan_result$cluster, pch = 19, main = "DBSCAN Clustering")
+
+contingency_table <- table(dbscan = dbscan_result$cluster, GMM = GMMmerge.ind)
+
+print(contingency_table)
+
+```
+
+Even though DBSCAN Cluster 0 (representing noise or unclustered data) is attributed to two distinct clusters by GMM (GMM Cluster 0 and GMM Cluster 1), the total number of points in this cluster is relatively low (7 points in total).
+
+Overall, these results indicate a strong similarity between the clustering results of DBSCAN and GMM for most observations. Ambiguity is primarily found in DBSCAN Cluster 0, representing noise or unclustered data. This similarity may suggest that both methods are uncovering similar data structures, at least for the data that is meaningfully clustered.
+
+## 7. Interpretation.
+
+Certainly, here's an improved explanation of your clusters, taking into account your results with MCLUST, component merging, and DBSCAN:
+
+Initially, you obtained 3 clusters:
+
+* Cluster 1: This cluster is associated with days when the temperature was low, and the number of rented bikes was generally the lowest. These days are likely characterized by less favorable weather conditions for bike rentals.
+
+* Cluster 2: The other two clusters fall within a similar temperature range. One of these clusters is likely representative of "normal" days in terms of bike rentals, with typical rental levels.
+
+* Cluster 3: The third cluster in the initial analysis can be linked to exceptional days in terms of bike rentals. These days stand out due to special conditions that led to significantly higher rental numbers. This could be attributed to factors such as low wind, holidays, weekends, or exceptionally favorable weather conditions.
+
+By merging certain components, you ended up with a division into 2 clusters, just like with DBSCAN. The results of these two clustering models are very similar:
+
+* Cluster A (after component merging) / Cluster 1 (DBSCAN): This cluster represents "normal" days in terms of bike rentals, with typical rental levels for a similar temperature range.
+
+* Cluster B (after component merging) / Cluster 2 (DBSCAN): This cluster is associated with days when the number of bike rentals was exceptionally high. This can be attributed to various factors, such as low wind, holidays, weekends, and favorable weather conditions. Conversely, rainy days are generally associated with low bike rentals.
+
+In summary, both clustering models converge on a distinction between "normal" days and exceptional days in terms of bike rentals. This suggests that temperature is a key factor influencing bike rental demand, but other factors like wind, weekdays, and weather conditions also play a significant role in rental levels.

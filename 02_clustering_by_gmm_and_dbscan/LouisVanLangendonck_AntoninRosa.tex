@@ -1,0 +1,554 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Density estimation. GMM. DBSCAN (Assignment)},
+  pdfauthor={Louis Van Langendonck \& Antonin Rosa \& Albert Martín},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Density estimation. GMM. DBSCAN (Assignment)}
+\author{Louis Van Langendonck \& Antonin Rosa \& Albert Martín}
+\date{11/oct./2023}
+
+\begin{document}
+\maketitle
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{load}\NormalTok{(}\StringTok{"BikeDay.Rdata"}\NormalTok{)}
+\NormalTok{X }\OtherTok{\textless{}{-}} \FunctionTok{as.matrix}\NormalTok{(day[day}\SpecialCharTok{$}\NormalTok{yr}\SpecialCharTok{==}\DecValTok{1}\NormalTok{,}\FunctionTok{c}\NormalTok{(}\DecValTok{10}\NormalTok{,}\DecValTok{14}\NormalTok{)])}
+\CommentTok{\#pairs(X)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{model-based-clustering-assuming-a-gaussian-mixture-model}{%
+\subsection{1. model based clustering assuming a Gaussian Mixture
+Model}\label{model-based-clustering-assuming-a-gaussian-mixture-model}}
+
+Using the G parameter in the \texttt{Mclust} function, options for K are
+set between 2 and 6. It automatically selects the model with the highest
+BIC score. Moreover, the BIC plot Via the \texttt{modelNames} parameter,
+mixture components are allowed variation in volume, shape, and
+orientation. The `BIC'-plot shows that K = 3 scores the best and is thus
+the choice of K the model automatically continues with. The
+classification, uncertainty and density plots use this value of K
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(mclust)}
+\NormalTok{GMM }\OtherTok{\textless{}{-}} \FunctionTok{Mclust}\NormalTok{(X,}\AttributeTok{G=}\DecValTok{2}\SpecialCharTok{:}\DecValTok{6}\NormalTok{,}\AttributeTok{modelNames=}\StringTok{"VVV"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(GMM, }\StringTok{"BIC"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-2-1}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(GMM, }\StringTok{"classification"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-2-2}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(GMM, }\StringTok{"uncertainty"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-2-3}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(GMM, }\StringTok{"density"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-2-4}
+
+\hypertarget{compare-the-previous-density-plot-with-the-non-parametric-density-estimation-of-tempcasual.}{%
+\subsection{2. Compare the previous density plot with the non-parametric
+density estimation of
+(temp,casual).}\label{compare-the-previous-density-plot-with-the-non-parametric-density-estimation-of-tempcasual.}}
+
+Comparing these plots, it becomes clear both show a similar profile.
+However the GMM model (left) yields a clear distinction in three
+gaussian shapes (as typically predicted in this type of model), while
+the non-param model (right) shows more arbitrary outlines. This is due
+to the fact that in the first case, the data is fit to the model
+(mixture of three gaussians) and the plot is a visual representation of
+these three gaussians, while the second plot is a direct representation
+of the data density, and thus less regular.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(sm)}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{))}
+\FunctionTok{plot}\NormalTok{(GMM,}\StringTok{"density"}\NormalTok{,}\AttributeTok{main=}\StringTok{"GMM"}\NormalTok{)}
+\NormalTok{a }\OtherTok{\textless{}{-}} \FloatTok{0.25}
+\NormalTok{h\_prop }\OtherTok{\textless{}{-}}\NormalTok{ a}\SpecialCharTok{*}\FunctionTok{c}\NormalTok{(}\FunctionTok{sd}\NormalTok{(X[,}\StringTok{"temp"}\NormalTok{]), }\FunctionTok{sd}\NormalTok{(X[,}\StringTok{"casual"}\NormalTok{]))}
+\FunctionTok{sm.density}\NormalTok{(X,h\_prop,}\AttributeTok{display=}\StringTok{"slice"}\NormalTok{,}\AttributeTok{main=}\StringTok{"Non{-}param Denisty Estimator"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-3-1.pdf}
+
+\hypertarget{non-parametric-joint-density-estimation-of-each-of-the-clusters}{%
+\subsection{3. Non-parametric joint density estimation of each of the
+clusters}\label{non-parametric-joint-density-estimation-of-each-of-the-clusters}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{clust.ind }\OtherTok{\textless{}{-}}\NormalTok{ GMM}\SpecialCharTok{$}\NormalTok{classification}
+\FunctionTok{plot}\NormalTok{(X,}\AttributeTok{col=}\NormalTok{clust.ind)}
+\ControlFlowTok{for}\NormalTok{ (j }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\DecValTok{3}\NormalTok{)\{}
+\NormalTok{  cl.j }\OtherTok{\textless{}{-}}\NormalTok{ (clust.ind}\SpecialCharTok{==}\NormalTok{j)}
+  \FunctionTok{sm.density}\NormalTok{(}
+\NormalTok{    X[cl.j,],}
+    \AttributeTok{h=}\FloatTok{0.4}\SpecialCharTok{*}\FunctionTok{c}\NormalTok{(}\FunctionTok{sd}\NormalTok{(X[cl.j,}\StringTok{"temp"}\NormalTok{]),}\FunctionTok{sd}\NormalTok{(X[cl.j,}\StringTok{"casual"}\NormalTok{])),}
+    \AttributeTok{display=}\StringTok{"slice"}\NormalTok{,}
+    \AttributeTok{props=}\FunctionTok{c}\NormalTok{(}\DecValTok{75}\NormalTok{),}
+    \AttributeTok{col=}\NormalTok{j, }
+    \AttributeTok{cex=}\DecValTok{4}\NormalTok{, }
+    \AttributeTok{add=}\ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-4-1.pdf}
+
+\hypertarget{component-merging}{%
+\subsection{4. Component merging}\label{component-merging}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(fpc)}
+\NormalTok{GMMbic }\OtherTok{\textless{}{-}} \FunctionTok{mclustBIC}\NormalTok{(X,}\AttributeTok{G=}\DecValTok{3}\NormalTok{,}\AttributeTok{modelnames=}\StringTok{\textquotesingle{}VVV\textquotesingle{}}\NormalTok{)}
+\NormalTok{GMMmerge }\OtherTok{\textless{}{-}}\NormalTok{ fpc}\SpecialCharTok{::}\FunctionTok{mergenormals}\NormalTok{(X,}\FunctionTok{summary}\NormalTok{(GMMbic,X),}\AttributeTok{method =} \StringTok{"bhat"}\NormalTok{)}
+\NormalTok{GMMmerge.ind }\OtherTok{\textless{}{-}}\NormalTok{ GMMmerge}\SpecialCharTok{$}\NormalTok{clustering}
+\FunctionTok{plot}\NormalTok{(X,}\AttributeTok{col=}\NormalTok{GMMmerge.ind)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-5-1.pdf}
+
+\hypertarget{non-param-density-estimation-of-each-of-the-new-merged-clusters}{%
+\subsection{5. Non-param density estimation of each of the new, merged
+clusters}\label{non-param-density-estimation-of-each-of-the-new-merged-clusters}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(X,}\AttributeTok{col=}\NormalTok{GMMmerge.ind)}
+\ControlFlowTok{for}\NormalTok{ (j }\ControlFlowTok{in} \DecValTok{1}\SpecialCharTok{:}\DecValTok{2}\NormalTok{)\{}
+\NormalTok{  cl.j }\OtherTok{\textless{}{-}}\NormalTok{ (GMMmerge.ind}\SpecialCharTok{==}\NormalTok{j)}
+  \FunctionTok{sm.density}\NormalTok{(X[cl.j,],}
+             \AttributeTok{h=}\FloatTok{0.4}\SpecialCharTok{*}\FunctionTok{c}\NormalTok{(}\FunctionTok{sd}\NormalTok{(X[cl.j,}\StringTok{"temp"}\NormalTok{]),}\FunctionTok{sd}\NormalTok{(X[cl.j,}\StringTok{"casual"}\NormalTok{])),}
+             \AttributeTok{display=}\StringTok{"slice"}\NormalTok{,}
+             \AttributeTok{props=}\FunctionTok{c}\NormalTok{(}\DecValTok{75}\NormalTok{),}
+             \AttributeTok{col=}\NormalTok{j, }
+             \AttributeTok{cex=}\DecValTok{4}\NormalTok{, }
+             \AttributeTok{add=}\ConstantTok{TRUE}\NormalTok{)}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-6-1.pdf}
+
+\hypertarget{dbscan}{%
+\subsection{6. DBScan}\label{dbscan}}
+
+All combinations of parameters are tested, and the average silhouette
+across all clusters is computed for each of them. We have chosen the
+ideal parameters as those that lead to the highest average silhouette.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(dbscan)}
+\FunctionTok{library}\NormalTok{(cluster)}
+
+\NormalTok{Xs }\OtherTok{\textless{}{-}} \FunctionTok{scale}\NormalTok{(X)}
+
+\NormalTok{eps\_values }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\FloatTok{0.25}\NormalTok{, }\FloatTok{0.5}\NormalTok{)}
+\NormalTok{minPts\_values }\OtherTok{\textless{}{-}} \FunctionTok{c}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{15}\NormalTok{, }\DecValTok{20}\NormalTok{)}
+\NormalTok{results }\OtherTok{\textless{}{-}} \FunctionTok{data.frame}\NormalTok{()}
+
+\NormalTok{best\_silhouette }\OtherTok{\textless{}{-}} \SpecialCharTok{{-}}\ConstantTok{Inf}
+\NormalTok{best\_eps }\OtherTok{\textless{}{-}} \ConstantTok{NULL}
+\NormalTok{best\_minPts }\OtherTok{\textless{}{-}} \ConstantTok{NULL}
+
+\ControlFlowTok{for}\NormalTok{ (eps }\ControlFlowTok{in}\NormalTok{ eps\_values) \{}
+  \ControlFlowTok{for}\NormalTok{ (minPts }\ControlFlowTok{in}\NormalTok{ minPts\_values) \{}
+    \CommentTok{\#Compute DBscan}
+\NormalTok{    dbscan\_result }\OtherTok{\textless{}{-}} \FunctionTok{dbscan}\NormalTok{(Xs, }\AttributeTok{eps =}\NormalTok{ eps, }\AttributeTok{minPts =}\NormalTok{ minPts)}
+    
+    \CommentTok{\#Compute Silhouette,as long as there is more than a single cluster}
+    \ControlFlowTok{if}\NormalTok{ (}\FunctionTok{max}\NormalTok{(dbscan\_result}\SpecialCharTok{$}\NormalTok{cluster) }\SpecialCharTok{\textgreater{}} \DecValTok{1}\NormalTok{) \{}
+\NormalTok{      silhouette\_avg }\OtherTok{\textless{}{-}} \FunctionTok{silhouette}\NormalTok{(dbscan\_result}\SpecialCharTok{$}\NormalTok{cluster, }\FunctionTok{dist}\NormalTok{(Xs))}
+\NormalTok{      avg\_silhouette }\OtherTok{\textless{}{-}} \FunctionTok{mean}\NormalTok{(silhouette\_avg[, }\StringTok{"sil\_width"}\NormalTok{])}
+      
+\NormalTok{      results }\OtherTok{\textless{}{-}} \FunctionTok{rbind}\NormalTok{(results, }
+                       \FunctionTok{data.frame}\NormalTok{(}\AttributeTok{eps =}\NormalTok{ eps, }\AttributeTok{minPts =}\NormalTok{ minPts, }\AttributeTok{silhouette =}\NormalTok{ avg\_silhouette))}
+    
+      \ControlFlowTok{if}\NormalTok{ (avg\_silhouette }\SpecialCharTok{\textgreater{}}\NormalTok{ best\_silhouette) \{}
+\NormalTok{        best\_silhouette }\OtherTok{\textless{}{-}}\NormalTok{ avg\_silhouette}
+\NormalTok{        best\_eps }\OtherTok{\textless{}{-}}\NormalTok{ eps}
+\NormalTok{        best\_minPts }\OtherTok{\textless{}{-}}\NormalTok{ minPts}
+\NormalTok{      \}}
+\NormalTok{    \}}
+\NormalTok{  \}}
+\NormalTok{\}}
+
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Best combination of parameters:}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Best combination of parameters:
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"Epsilon:"}\NormalTok{, best\_eps, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Epsilon: 0.5
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cat}\NormalTok{(}\StringTok{"MinPts:"}\NormalTok{, best\_minPts, }\StringTok{"}\SpecialCharTok{\textbackslash{}n}\StringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## MinPts: 10
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{dbscan\_result }\OtherTok{\textless{}{-}} \FunctionTok{dbscan}\NormalTok{(Xs, }\AttributeTok{eps =}\NormalTok{ best\_eps, }\AttributeTok{minPts =}\NormalTok{ best\_minPts)}
+\FunctionTok{plot}\NormalTok{(Xs, }\AttributeTok{col =}\NormalTok{ dbscan\_result}\SpecialCharTok{$}\NormalTok{cluster, }\AttributeTok{pch =} \DecValTok{19}\NormalTok{, }\AttributeTok{main =} \StringTok{"DBSCAN Clustering"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-7-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{contingency\_table }\OtherTok{\textless{}{-}} \FunctionTok{table}\NormalTok{(}\AttributeTok{dbscan =}\NormalTok{ dbscan\_result}\SpecialCharTok{$}\NormalTok{cluster, }\AttributeTok{GMM =}\NormalTok{ GMMmerge.ind)}
+
+\FunctionTok{print}\NormalTok{(contingency\_table)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##       GMM
+## dbscan   1   2
+##      0   1   6
+##      1 307   2
+##      2   0  50
+\end{verbatim}
+
+Even though DBSCAN Cluster 0 (representing noise or unclustered data) is
+attributed to two distinct clusters by GMM (GMM Cluster 0 and GMM
+Cluster 1), the total number of points in this cluster is relatively low
+(7 points in total).
+
+Overall, these results indicate a strong similarity between the
+clustering results of DBSCAN and GMM for most observations. Ambiguity is
+primarily found in DBSCAN Cluster 0, representing noise or unclustered
+data. This similarity may suggest that both methods are uncovering
+similar data structures, at least for the data that is meaningfully
+clustered.
+
+\hypertarget{interpretation.}{%
+\subsection{7. Interpretation.}\label{interpretation.}}
+
+In order to analyze the meaning of the two clustered data points, we
+visualized the distributions of every variable conditioned on the
+assigned cluster. For categorical features we show the level frequencies
+conditioned on the cluster, and for the numerical ones we show the
+histograms, also for both clusters.
+
+Looking at the numerical features, the first thing one can notice is
+that weather conditions for the second cluster tend to have less
+variance and generally be better, so we can confidently hypothesize that
+the factors determining the cluster will have something to do with good
+weather.
+
+Of course, we see the expected difference in the casual feature as well,
+as it also defined the clustering process along with the temperature.
+The histograms show how cluster 1 tends to have lower casual values
+while cluster 2 has the highest, and also days assigned in cluster 2
+have much higher total count of users. Noticing that the mean of
+registered users is very similar in days of both clusters while the
+number if casual users is significantly larger for cluster 2 days, along
+with the better temperatures on those days, we believe we can explain
+this behavior by assuming that in cluster 2 days there is increased
+demand of bicycles for leisure use. This would also explain why the
+number of registered users does not change much, as those use the
+service for their work days as well as for leisure days, while the other
+users do not have registration and only use it for leisure time, thus
+increasing the casual user count on cluster 2 days.
+
+This hypothesis is further reinforced by looking at the categorical
+feature distributions depending on the cluster. Just by checking season
+and month, one can already assert that cluster 2 days are never during
+winter season, which makes sense considering Washington has a cold
+climate, making leisure strolls in a bicycle much less appealing.
+Finally, the weekday and working day features imply that days assigned
+to cluster 2 are weekends, which would fit with our hypothesis of
+cluster 2 days being days where users use the service for leisure.
+
+Thus, after analyzing how the features are distributed depending on the
+cluster they are assigned to, we believe these clusters indicate two
+different kinds of days for the service. * Cluster 1: Work days where
+registered users use the service to commute to work. * Cluster 2:
+Weekends or days with good temperature where both registered and casual
+users use the service for leisure.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{df}\OtherTok{\textless{}{-}}\FunctionTok{data.frame}\NormalTok{(day[day}\SpecialCharTok{$}\NormalTok{yr}\SpecialCharTok{==}\DecValTok{1}\NormalTok{,])}
+\NormalTok{catCols}\OtherTok{\textless{}{-}}\FunctionTok{c}\NormalTok{(}\DecValTok{3}\NormalTok{,}\DecValTok{5}\NormalTok{,}\DecValTok{6}\NormalTok{,}\DecValTok{7}\NormalTok{,}\DecValTok{8}\NormalTok{,}\DecValTok{9}\NormalTok{)}
+\NormalTok{numCols}\OtherTok{\textless{}{-}}\FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{,}\DecValTok{10}\NormalTok{,}\DecValTok{11}\NormalTok{,}\DecValTok{12}\NormalTok{,}\DecValTok{13}\NormalTok{,}\DecValTok{14}\NormalTok{,}\DecValTok{15}\NormalTok{,}\DecValTok{16}\NormalTok{)}
+\NormalTok{numdf}\OtherTok{\textless{}{-}}\NormalTok{df[,numCols]}
+\NormalTok{catdf}\OtherTok{\textless{}{-}}\FunctionTok{data.frame}\NormalTok{(}\FunctionTok{lapply}\NormalTok{(df[,catCols],factor))}
+\NormalTok{catdf}\SpecialCharTok{$}\NormalTok{cluster}\OtherTok{\textless{}{-}}\FunctionTok{factor}\NormalTok{(dbscan\_result}\SpecialCharTok{$}\NormalTok{cluster)}
+\NormalTok{numdf1}\OtherTok{\textless{}{-}}\NormalTok{numdf[catdf}\SpecialCharTok{$}\NormalTok{cluster}\SpecialCharTok{==}\DecValTok{1}\NormalTok{,]}
+\NormalTok{numdf2}\OtherTok{\textless{}{-}}\NormalTok{numdf[catdf}\SpecialCharTok{$}\NormalTok{cluster}\SpecialCharTok{==}\DecValTok{2}\NormalTok{,]}
+\NormalTok{catdf1}\OtherTok{\textless{}{-}}\NormalTok{catdf[catdf}\SpecialCharTok{$}\NormalTok{cluster}\SpecialCharTok{==}\DecValTok{1}\NormalTok{,]}
+\NormalTok{catdf2}\OtherTok{\textless{}{-}}\NormalTok{catdf[catdf}\SpecialCharTok{$}\NormalTok{cluster}\SpecialCharTok{==}\DecValTok{2}\NormalTok{,]}
+\FunctionTok{par}\NormalTok{(}\AttributeTok{mfrow =} \FunctionTok{c}\NormalTok{(}\DecValTok{1}\NormalTok{, }\DecValTok{2}\NormalTok{))}
+\CommentTok{\#Season}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{season,}\AttributeTok{main=}\StringTok{"Cluster 1: Season"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{season,}\AttributeTok{main=}\StringTok{"Cluster 2: Season"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-1}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Month}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{mnth,}\AttributeTok{main=}\StringTok{"Cluster 1: Month"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{mnth,}\AttributeTok{main=}\StringTok{"Cluster 2: Month"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-2}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Holiday}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{holiday,}\AttributeTok{main=}\StringTok{"Cluster 1: Holiday"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{holiday,}\AttributeTok{main=}\StringTok{"Cluster 2: Holiday"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-3}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#weekday}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{weekday,}\AttributeTok{main=}\StringTok{"Cluster 1: Weekday"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{weekday,}\AttributeTok{main=}\StringTok{"Cluster 2: Weekday"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-4}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#workingday}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{workingday,}\AttributeTok{main=}\StringTok{"Cluster 1: Workingday"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{workingday,}\AttributeTok{main=}\StringTok{"Cluster 2: Workingday"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-5}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Weathersit}
+\FunctionTok{plot}\NormalTok{(catdf1}\SpecialCharTok{$}\NormalTok{weathersit,}\AttributeTok{main=}\StringTok{"Cluster 1: Weathersit"}\NormalTok{)}
+\FunctionTok{plot}\NormalTok{(catdf2}\SpecialCharTok{$}\NormalTok{weathersit,}\AttributeTok{main=}\StringTok{"Cluster 2: Weathersit"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-6}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Temperature}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{temp,}\AttributeTok{main=}\StringTok{"Cluster 1: Temperature"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{temp,}\AttributeTok{main=}\StringTok{"Cluster 2: Temperature"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-7}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Feeling temperature}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{atemp,}\AttributeTok{main=}\StringTok{"Cluster 1: Feeling temperature"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{atemp,}\AttributeTok{main=}\StringTok{"Cluster 2: Feeling temperature"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-8}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Humidity}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{hum,}\AttributeTok{main=}\StringTok{"Cluster 1: Humidity"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{hum,}\AttributeTok{main=}\StringTok{"Cluster 2: Humidity"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{1}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-9}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Wind Speed}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{windspeed,}\AttributeTok{main=}\StringTok{"Cluster 1: Windspeed"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.55}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{windspeed,}\AttributeTok{main=}\StringTok{"Cluster 2: Windspeed"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\FloatTok{0.55}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-10}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Casual}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{casual,}\AttributeTok{main=}\StringTok{"Cluster 1: Casual"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{3300}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{casual,}\AttributeTok{main=}\StringTok{"Cluster 2: Casual"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{3300}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-11}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Registered}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{registered,}\AttributeTok{main=}\StringTok{"Cluster 1: Registered"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{7000}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{registered,}\AttributeTok{main=}\StringTok{"Cluster 2: Registered"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{7000}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-12}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#Count}
+\FunctionTok{hist}\NormalTok{(numdf1}\SpecialCharTok{$}\NormalTok{cnt,}\AttributeTok{main=}\StringTok{"Cluster 1: Count"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{10000}\NormalTok{))}
+\FunctionTok{hist}\NormalTok{(numdf2}\SpecialCharTok{$}\NormalTok{cnt,}\AttributeTok{main=}\StringTok{"Cluster 2: Count"}\NormalTok{,}\AttributeTok{xlim =} \FunctionTok{c}\NormalTok{(}\DecValTok{0}\NormalTok{,}\DecValTok{10000}\NormalTok{))}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics[height=0.4\textheight]{LouisVanLangendonck_AntoninRosa_files/figure-latex/unnamed-chunk-8-13}
+
+\end{document}
