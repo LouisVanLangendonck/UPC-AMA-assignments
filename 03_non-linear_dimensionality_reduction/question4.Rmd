@@ -1,0 +1,176 @@
+---
+title: "question4"
+date: "2023-10-22"
+output: html_document
+---
+
+### 4 t-SNE for ZERO digits.
+
+### a)
+
+Prepare the data as done in earlier exercises.
+
+```{r}
+plot.zip <- function(x,use.first=FALSE,...){
+  x<-as.numeric(x)
+  if (use.first){
+    x.mat <- matrix(x,16,16)
+  }else{
+    x.mat <- matrix(x[-1],16,16)
+  }
+  image(1:16,1:16,x.mat[,16:1],
+        col=gray(seq(1,0,l=12)),...)
+  #col=gray(seq(1,0,l=2)))
+}
+
+
+data <- read.table("zip.train", sep=" ")
+
+# Separate the target labels and feature vectors
+labels <- data$V1
+features <- data[, -1]
+
+# Filter only the ZEROs (label 0)
+zero_indices <- which(labels == 0)
+zero_data <- features[zero_indices,]
+```
+
+Run rtsne and do scatterplot.
+
+```{r}
+#install.packages("Rtsne")
+library(Rtsne)
+
+set.seed(1)
+tsne_out <- Rtsne(zero_data[,-ncol(zero_data)],dims=2,pca=FALSE,perplexity=40,theta=0.0) # Run TSNE
+
+# Scatterplot of 2D tsne representation
+plot(tsne_out$Y, asp=1)
+```
+
+### b).
+
+As a strategy to select interesting points, for each of the dimensions, the point corresponding to the smallest value, the 1st quartile value, the median, the 3rd quartile value and the largest value of that dimension are selected. This adds up in total to 10 points that indeed cover the variation well (see red dots).
+
+```{r}
+interesting_points <- c(which(tsne_out$Y[,1]==min(tsne_out$Y[,1])))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,1]==quantile(tsne_out$Y[,1], 0.25, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,1]==quantile(tsne_out$Y[,1], 0.5, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,1]==quantile(tsne_out$Y[,1], 0.75, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,1]==max(tsne_out$Y[,1])))
+
+interesting_points <- c(interesting_points,which(tsne_out$Y[,2]==min(tsne_out$Y[,2])))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,2]==quantile(tsne_out$Y[,2], 0.25, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,2]==quantile(tsne_out$Y[,2], 0.5, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,2]==quantile(tsne_out$Y[,2], 0.75, type=1)))
+interesting_points <- c(interesting_points,which(tsne_out$Y[,2]==max(tsne_out$Y[,2])))
+
+plot(tsne_out$Y, asp=1)
+points(tsne_out$Y[interesting_points,1],tsne_out$Y[interesting_points,2],col = "red", pch=19)
+text(tsne_out$Y[interesting_points,1],tsne_out$Y[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+Looking at the 5 images that represent increasing value of the first dimension it can be concluded that the first dimension seems to be increasing with the width of the drawing.
+
+```{r}
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+Looking at the 5 images that represent increasing value of the second dimension it can be concluded that the second dimension seems to be inversly related to the size of the diameter of the zero.
+
+```{r}
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+### c).
+
+The LCMC function that takes as input the distance matrices of the high-dimensionsional and low-dimensional representations is copied from the example in class.
+
+```{r}
+LCMC <- function(D1,D2,Kp){
+  D1 <- as.matrix(D1)
+  D2 <- as.matrix(D2)
+  n <- dim(D1)[1]
+  N.Kp.i <- numeric(n)
+  for (i in 1:n){
+    N1.i <- sort.int(D1[i,],index.return = TRUE)$ix[1:Kp]
+    N2.i <- sort.int(D2[i,],index.return = TRUE)$ix[1:Kp]
+    N.Kp.i[i] <- length(intersect(N1.i, N2.i))
+  }
+  N.Kp<-mean(N.Kp.i)
+  M.Kp.adj <- N.Kp/Kp - Kp/(n-1)
+  
+  return(list(N.Kp.i=N.Kp.i, M.Kp.adj=M.Kp.adj))
+}
+```
+
+The three proposed values of perplexity are set at 10, 20 and 40. A loop is ran in which the rtsne is executed for each of these perplexity values and the corresponding Local Continuity meta criteria value calculated. From these results we can see that the highest value is found for perplexity 20.
+
+```{r}
+D1 <- dist(zero_data[,-ncol(zero_data)])
+
+perplexity <- c(10,20,40)
+LC <- c(0,0,0)
+
+for (i in 1:length(perplexity)){
+    Rtsne.k <- Rtsne(D1, perplexity=perplexity[i], dims=2,
+                          theta=0, pca=FALSE, max_iter = 1000)
+    D2 <- dist(Rtsne.k$Y)
+    LC[i] <- LCMC(D1,D2,10)$M.Kp.adj
+    #print(c(i,j,LC[i,j]))
+}
+
+best_perplexity <- perplexity[which.max(LC)]
+```
+
+For this perplexity value the scatterplot is made and the interesting points that cover its variance selected using the same strategy as in b).
+
+```{r}
+best_Rtsne <- Rtsne(D1, perplexity=20, dims=2,
+                          theta=0, pca=FALSE, max_iter = 1000)
+
+interesting_points <- c(which(best_Rtsne$Y[,1]==min(best_Rtsne$Y[,1])))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,1]==quantile(best_Rtsne$Y[,1], 0.25, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,1]==quantile(best_Rtsne$Y[,1], 0.5, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,1]==quantile(best_Rtsne$Y[,1], 0.75, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,1]==max(best_Rtsne$Y[,1])))
+
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,2]==min(best_Rtsne$Y[,2])))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,2]==quantile(best_Rtsne$Y[,2], 0.25, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,2]==quantile(best_Rtsne$Y[,2], 0.5, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,2]==quantile(best_Rtsne$Y[,2], 0.75, type=1)))
+interesting_points <- c(interesting_points,which(best_Rtsne$Y[,2]==max(best_Rtsne$Y[,2])))
+
+plot(best_Rtsne$Y, asp=1)
+points(best_Rtsne$Y[interesting_points,1],best_Rtsne$Y[interesting_points,2],col = "red", pch=19)
+text(best_Rtsne$Y[interesting_points,1],best_Rtsne$Y[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+Looking at the 5 images that represent increasing value of the first dimension it can be concluded that the first dimension seems to be positively related to the size of the diameter of the zero.
+
+```{r}
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+Looking at the 5 images that represent increasing value of the second dimension it can be concluded that the second dimension seems to be inversly related to the width of the zero.
+
+```{r}
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
