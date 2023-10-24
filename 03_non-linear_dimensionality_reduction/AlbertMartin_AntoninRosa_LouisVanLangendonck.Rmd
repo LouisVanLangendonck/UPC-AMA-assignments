@@ -18,6 +18,7 @@ require(princurve)
 ### 1. Choosing the smoothing parameter in Principal Curves
 
 Generate dataset as instructed:
+
 ```{r}
 t <- seq(-1.5*pi,1.5*pi,l=100)
 R<- 1
@@ -46,6 +47,7 @@ points3D(rx,ry,rz,col=4,pch=19,cex=.6,add=TRUE)
 
 
 #### a) LOOCV for df:
+
 To compute the Leave One Out Cross-Validation, we split the samples in five folds, and for each of them fit a Principal Curve to the other four folds, and compute the distance of the remaining fold to the fitted PC. The sum of this distance across all five folds is the score for each value of df, so the one that leads to the lowest sum of squared distances is computed in the end, which ends up being 8.
 
 ```{r}
@@ -146,18 +148,424 @@ legend("topright", legend = c("Source line", "Principal Curve","Sample points"),
 ```
 
 
+## Part B : Local MDS, ISOMAP and t-SNE.
+
+We load in the ZIP data and the necessary packages. Every row in this data represents a drawing of the number (we will only select numbers zero) and each column represents a pixel-value. Given that the images are 16x16, there are 256 columns, hence high-dimensional data. We will therefore try 3 dimensionality-reduction methods: Local-MDS, ISOMAP and t-SNE.
+
+```{r}
+
+if (!require("smacofx", quietly = TRUE, warn.conflicts = FALSE)) {
+  install.packages("smacofx", repos = "http://R-Forge.R-project.org", INSTALL_opts = "--no-test-load")
+}
+
+library("smacofx")
+
+if (!require(stops, quietly=TRUE, warn.conflicts=FALSE)){
+  install.packages("stops", repos="http://R-Forge.R-project.org",INSTALL_opts="--no-test-load")
+}
+
+library(stops)
+
+plot.zip <- function(x,use.first=FALSE,...){
+  x<-as.numeric(x)
+  if (use.first){
+    x.mat <- matrix(x,16,16)
+  }else{
+    x.mat <- matrix(x[-1],16,16)
+  }
+  image(1:16,1:16,x.mat[,16:1],
+        col=gray(seq(1,0,l=12)),...)
+  #col=gray(seq(1,0,l=2)))
+}
+
+# Load the entire training data set
+data <- read.table("zip.train", sep=" ")
+
+# Separate the target labels and feature vectors
+labels <- data$V1
+features <- data[, -1]
+
+# Filter only the ZEROs (label 0)
+zero_indices <- which(labels == 0)
+zero_data <- features[zero_indices,]
+```
+
+### 2. Local MDS for ZERO digits.
+
+### a).
+
+Using the proposed parameters of $k = 5$ and $\tau = 0.05$, a local MDS run is executed. Note that these typically takes a lot of time to run. The resulting two-dimensional representation of the data is plotted. 
+
+```{r}
+n <- dim(zero_data)[1]
+k <- 5
+tau <- .05
+q<-2 # 2-dim config
+conf0 <- stats::cmdscale(dist(zero_data), k=q)
 
 
+lmds_result <- lmds(as.matrix(dist(zero_data)), init=conf0, ndim=2, k=5, tau=0.05, itmax = 1000)
+
+ylower_limit <- min(lmds_result$conf[, 2]) - 0.1
+yupper_limit <- max(lmds_result$conf[, 2]) + 0.1
+
+xlower_limit <- min(lmds_result$conf[, 1]) - 0.1
+xupper_limit <- max(lmds_result$conf[, 1]) + 0.1
 
 
+plot(lmds_result$conf, type = "n", xlab = "Dimension 1", ylab = "Dimension 2", main = "LMDS Scatterplot", ylim = c(ylower_limit, yupper_limit), xlim=c(xlower_limit, xupper_limit))
+points(lmds_result$conf, pch = 20)
+```
+
+### b).
+
+As a strategy to select interesting points, for each of the dimensions, the point corresponding to the smallest value, the 1st quartile value, the median, the 3rd quartile value and the largest value of that dimension are selected. This adds up in total to 10 points that indeed cover the variation well (see red dots). We make a function of this method to select points to reuse it easily later.
+
+```{r}
+select_interesting_points <- function(config_points) {
+    res <- c(which(config_points[,1]==min(config_points[,1])))
+    res <- c(res,which(config_points[,1]==quantile(config_points[,1], 0.25, type=1)))
+    res <- c(res,which(config_points[,1]==quantile(config_points[,1], 0.5, type=1)))
+    res <- c(res,which(config_points[,1]==quantile(config_points[,1], 0.75, type=1)))
+    res <- c(res,which(config_points[,1]==max(config_points[,1])))
+    
+    res <- c(res,which(config_points[,2]==min(config_points[,2])))
+    res <- c(res,which(config_points[,2]==quantile(config_points[,2], 0.25, type=1)))
+    res <- c(res,which(config_points[,2]==quantile(config_points[,2], 0.5, type=1)))
+    res <- c(res,which(config_points[,2]==quantile(config_points[,2], 0.75, type=1)))
+    res <- c(res,which(config_points[,2]==max(config_points[,2])))
+    return(res)
+}
+```
 
 
+```{r}
+interesting_points <- select_interesting_points(lmds_result$conf)
+selected_points <- lmds_result$conf[interesting_points, ]
+
+plot(lmds_result$conf, xlab = "Dimension 1", ylab = "Dimension 2", main = "LMDS Scatterplot")
+points(selected_points, pch = 20, col = "red")
+text(selected_points, labels = interesting_points, pos = 3, cex = 0.7)
+```
+
+Plotting the corresponding drawings og the first five points (representing increasing first dimension), we can see this dimension seems to be proportional to increasing width and increasing diameter of the zero. 
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+From the drawing, the second dimension is a bit less easy to characterize. However, it seems to be correlated with increasingly atypical top parts of the drawing (like open parts, poorly drawn zeros, noise,...) or maybe inversely related with the vertical component of the zeros. 
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+### c).
+
+Now the LC-meta-criteria is used to tune parameters. The LCMC function that takes as input the distance matrices of the high-dimensional and low-dimensional representations is copied from the example in class. This function calculates the LC-meta-criteria value for which the configuration giving the maximum value is chosen as optimal.
+
+```{r}
+LCMC <- function(D1,D2,Kp){
+  D1 <- as.matrix(D1)
+  D2 <- as.matrix(D2)
+  n <- dim(D1)[1]
+  N.Kp.i <- numeric(n)
+  for (i in 1:n){
+    N1.i <- sort.int(D1[i,],index.return = TRUE)$ix[1:Kp]
+    N2.i <- sort.int(D2[i,],index.return = TRUE)$ix[1:Kp]
+    N.Kp.i[i] <- length(intersect(N1.i, N2.i))
+  }
+  N.Kp<-mean(N.Kp.i)
+  M.Kp.adj <- N.Kp/Kp - Kp/(n-1)
+  
+  return(list(N.Kp.i=N.Kp.i, M.Kp.adj=M.Kp.adj))
+}
+```
+
+Now all combinations of the candidate values of k and tau are made and the LCMC calculated for there local MDS result. The configuration with the highest LCMC score is kept. We see that that is the case for k = 5 and tau = 1.
+
+```{r}
+D1 <- dist(zero_data)
+
+k_values <- c(5, 10, 50)
+tau_values <- c(0.1, 0.5, 1)
+
+best_k <- NULL
+best_tau <- NULL
+best_lcmc <- -Inf  
+
+best_configuration <- NULL
+
+for (k in k_values) {
+  for (tau in tau_values) {
+    lmds_result <- lmds(as.matrix(dist(zero_data)), ndim = 2, k = k, tau = tau, itmax=1000)
+    D2 <- dist(lmds_result$conf)
+    lcmc <- LCMC(D1,D2,10)$M.Kp.adj
+    
+    if (lcmc > best_lcmc) {
+      best_lcmc <- lcmc
+      best_k <- k
+      best_tau <- tau
+      best_configuration <- lmds_result$conf
+    }
+  }
+}
+
+cat("Best Configuration - k:", best_k, "tau:", best_tau, "LCMC:", best_lcmc, "\n")
+```
+
+The same strategy as before is maintained to select points covering the distribution of the scatterplots.
+
+```{r}
+interesting_points <- select_interesting_points(best_configuration)
+plot(best_configuration, asp=1,xlab = "Dimension 1", ylab = "Dimension 2", main = "Optimal Low-Dimensional Configuration")
+points(best_configuration[interesting_points,1],best_configuration[interesting_points,2],col = "red", pch=19)
+text(best_configuration[interesting_points,1],best_configuration[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+Plotting the points representing increasing value of dimension 1, we see that it seems to be proportionate to an increase in diameter of the zero and a decrease in width of the stroke.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+Plotting the points representing the increase in dimension 2, we find a less obvious relation (as expected maybe from the scatterplot where most variance is in the first dimension). An interpretation could be that it is proportional to a decrease in the vertical component (vertical diameter) of the zero scribble.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+### 3 ISOMAP for ZERO digits.
+
+### a).
+
+```{r}
+library(vegan)
+
+isomap_result <- isomap(as.matrix(dist(zero_data)), ndim = 2, k = 5)
+
+isomap_coordinates <- isomap_result$points
+
+plot(isomap_coordinates, type = "n", xlab = "Dimension 1", ylab = "Dimension 2", main = "Isomap 2-Dimensional Configuration")
+points(isomap_coordinates, pch = 20, col = "blue")
+```
+
+### b).
+
+```{r}
+interesting_points <- select_interesting_points(isomap_coordinates)
+plot(isomap_coordinates, asp=1)
+points(isomap_coordinates[interesting_points,1],isomap_coordinates[interesting_points,2],col = "red", pch=19)
+text(isomap_coordinates[interesting_points,1],isomap_coordinates[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+From the images of the zeros, the first dimension can be interpreted as proportional to the diameter of the zero.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+From the images of the zeros, the second dimension can be interpreted as proportional to the vertical component of the zero or inversely to the width of the stroke.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+### c).
+
+Similar to in part c) of the last question, the LCMC function is used to see for which low-dimensional configuration the LC-meta-criteria scores the highest. Three proposed values of perplexity are tested. A plot of the interesting points is then made. 
+
+```{r}
+D1 <- dist(zero_data)
+
+perplexity <- c(5, 10, 50)
+LC <- c(0, 0, 0)
+
+for (i in 1:length(perplexity)) {
+  isomap_result <- isomap(as.matrix(dist(zero_data)), ndim = 2, k = perplexity[i])
+  D2 <- dist(isomap_result$points)
+  LC[i] <- LCMC(D1, D2, perplexity[i])$M.Kp.adj
+}
+
+best_k <- perplexity[which.max(LC)]
+
+cat("Accordig to the LC-criteria, the best value of k is:", best_k, "\n")
+
+best_isomap <- isomap(as.matrix(dist(zero_data)), ndim = 2, k = best_k)
+
+interesting_points <- select_interesting_points(best_isomap$points)
+
+plot(best_isomap$points, asp=1)
+points(best_isomap$points[interesting_points,1],best_isomap$points[interesting_points,2],col = "red", pch=19)
+text(best_isomap$points[interesting_points,1],best_isomap$points[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+From the images of the zeros, the first dimension can be interpreted as proportional to the diameter of the zero or the width of the zero.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+From the images of the zeros, the second dimension can be interpreted as inversely proportional to stroke width.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+### 4 t-SNE for ZERO digits.
+
+### a)
+
+Run rtsne and do scatterplot.
+
+```{r}
+#install.packages("Rtsne")
+library(Rtsne)
+
+zero_data_rsne <- zero_data[,-ncol(zero_data)] #Remove last column of missing values as the Rtsne package can't handle that.
+
+set.seed(1)
+tsne_out <- Rtsne(zero_data_rsne,dims=2,pca=FALSE,perplexity=40,theta=0.0) # Run TSNE
+
+# Scatterplot of 2D tsne representation
+plot(tsne_out$Y, asp=1)
+```
+
+### b). 
+
+The same interesting points function as in previous exercises is used and the corresponding scatterplot shown.
+
+```{r}
+interesting_points <- select_interesting_points(tsne_out$Y)
+
+plot(tsne_out$Y, asp=1)
+points(tsne_out$Y[interesting_points,1],tsne_out$Y[interesting_points,2],col = "red", pch=19)
+text(tsne_out$Y[interesting_points,1],tsne_out$Y[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
+
+Looking at the 5 images that represent increasing value of the first dimension it can be concluded that the first dimension seems to be increasing with the width of the drawing.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+Looking at the 5 images that represent increasing value of the second dimension it can be concluded that the second dimension seems to be inversly related to the size of the diameter of the zero and positively related with the stroke width.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+### c).
+
+The three proposed values of perplexity are set at 10, 20 and 40. A loop is ran in which the rtsne is executed for each of these perplexity values and the corresponding Local Continuity meta criteria value calculated. From these results we can see that the highest value is found for perplexity 20.
 
 
+```{r}
+D1 <- dist(zero_data_rsne)
 
+perplexity <- c(10,20,40)
+LC <- c(0,0,0)
 
+for (i in 1:length(perplexity)){
+    Rtsne.k <- Rtsne(D1, perplexity=perplexity[i], dims=2,
+                          theta=0, pca=FALSE, max_iter = 1000)
+    D2 <- dist(Rtsne.k$Y)
+    LC[i] <- LCMC(D1,D2,10)$M.Kp.adj
+    #print(c(i,j,LC[i,j]))
+}
 
+best_perplexity <- perplexity[which.max(LC)]
 
+best_Rtsne <- Rtsne(D1, perplexity=best_perplexity, dims=2,
+                          theta=0, pca=FALSE, max_iter = 1000)
 
+interesting_points <- select_interesting_points(best_Rtsne$Y)
+plot(best_Rtsne$Y, asp=1)
+points(best_Rtsne$Y[interesting_points,1],best_Rtsne$Y[interesting_points,2],col = "red", pch=19)
+text(best_Rtsne$Y[interesting_points,1],best_Rtsne$Y[interesting_points,2],labels = interesting_points, pos = 3, cex = 0.7, col = "red")
+```
 
+Looking at the 5 images that represent increasing value of the first dimension it can be concluded that the first dimension seems to be positively related to the size of the diameter of the zero.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 1:5) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+Looking at the 5 images that represent increasing value of the second dimension it can be concluded that the second dimension seems to be inversly related to the width of the drawing.
+
+```{r}
+par(mfrow=c(2,3))
+for (i in 6:10) {
+  cat("Image for Point ", interesting_points[i], ":\n")
+  plot.zip(zero_data[interesting_points[i], ])
+  title(interesting_points[i])
+}
+```
+
+### 5. Compare Local MDS, ISOMAP and t-SNE for ZERO digits
+
+### a).
+
+```{r}
+
+```
+
+### b).
+
+```{r}
+
+```
 
