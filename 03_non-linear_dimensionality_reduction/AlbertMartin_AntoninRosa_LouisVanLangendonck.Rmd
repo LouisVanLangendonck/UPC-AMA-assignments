@@ -192,7 +192,7 @@ zero_data <- features[zero_indices,]
 
 ### 2. Local MDS for ZERO digits.
 
-### a).
+### a) Running the method
 
 Using the proposed parameters of $k = 5$ and $\tau = 0.05$, a local MDS run is executed. Note that these typically takes a lot of time to run. The resulting two-dimensional representation of the data is plotted. 
 
@@ -217,7 +217,7 @@ plot(lmds_result$conf, type = "n", xlab = "Dimension 1", ylab = "Dimension 2", m
 points(lmds_result$conf, pch = 20)
 ```
 
-### b).
+### b) Interpreting dimensions
 
 As a strategy to select interesting points, for each of the dimensions, the point corresponding to the smallest value, the 1st quartile value, the median, the 3rd quartile value and the largest value of that dimension are selected. This adds up in total to 10 points that indeed cover the variation well (see red dots). We make a function of this method to select points to reuse it easily later.
 
@@ -269,7 +269,8 @@ for (i in 6:10) {
   title(interesting_points[i])
 }
 ```
-### c).
+
+### c) Optimizing parameters
 
 Now the LC-meta-criteria is used to tune parameters. The LCMC function that takes as input the distance matrices of the high-dimensional and low-dimensional representations is copied from the example in class. This function calculates the LC-meta-criteria value for which the configuration giving the maximum value is chosen as optimal.
 
@@ -357,7 +358,7 @@ for (i in 6:10) {
 
 ### 3 ISOMAP for ZERO digits.
 
-### a).
+### a) running the method
 
 ```{r}
 library(vegan)
@@ -370,7 +371,7 @@ plot(isomap_coordinates, type = "n", xlab = "Dimension 1", ylab = "Dimension 2",
 points(isomap_coordinates, pch = 20, col = "blue")
 ```
 
-### b).
+### b) interpreting dimensions
 
 ```{r}
 interesting_points <- select_interesting_points(isomap_coordinates)
@@ -401,7 +402,7 @@ for (i in 6:10) {
 }
 ```
 
-### c).
+### c) optimizing parameters
 
 Similar to in part c) of the last question, the LCMC function is used to see for which low-dimensional configuration the LC-meta-criteria scores the highest. Three proposed values of perplexity are tested. A plot of the interesting points is then made. 
 
@@ -455,7 +456,7 @@ for (i in 6:10) {
 
 ### 4 t-SNE for ZERO digits.
 
-### a)
+### a) running the method
 
 Run rtsne and do scatterplot.
 
@@ -472,7 +473,7 @@ tsne_out <- Rtsne(zero_data_rsne,dims=2,pca=FALSE,perplexity=40,theta=0.0) # Run
 plot(tsne_out$Y, asp=1)
 ```
 
-### b). 
+### b) Interpreting dimensions
 
 The same interesting points function as in previous exercises is used and the corresponding scatterplot shown.
 
@@ -505,7 +506,8 @@ for (i in 6:10) {
   title(interesting_points[i])
 }
 ```
-### c).
+
+### c) optimizing parameters
 
 The three proposed values of perplexity are set at 10, 20 and 40. A loop is ran in which the rtsne is executed for each of these perplexity values and the corresponding Local Continuity meta criteria value calculated. From these results we can see that the highest value is found for perplexity 20.
 
@@ -560,12 +562,13 @@ for (i in 6:10) {
 
 ### 5. Compare Local MDS, ISOMAP and t-SNE for ZERO digits
 
-### a).
+### a) Comparing method dimensions
 
 The pairs function is used to see if dimensions of different methods might align. We find that this clearly is the case, however in some cases more than the others. 
 
 Most strikingly, the first dimension shows a clear relation:
 - All methods are directly proportional to each other, which indicates these methods find a similar most informative first representation dimension. 
+- Looking at the interpretation of the actual images in each of the agreeing methods, it seems clear that dimension 1 is -in each method- proportional to the zeros' width (and hence increasing diameter).   
 
 The second dimension also shows some proportionality, however, the correlation is less clear: 
 - Isomap and t-sne are kind of inversely proportional. 
@@ -585,7 +588,7 @@ colnames(df.methods) <- c("Rtsne_dim1","Isomap_dim1",
 pairs(df.methods)
 ```
 
-### b).
+### b) Best LCMC value
 
 According to the local continuity meta criteria, the t-SNE gives the best results, hence representing the high-dimensional continuity very well in its lower-dimensional representation. Given that it seemed to be finding this representation the quickest of all three methods, it might be concluded its the strongest technique of the three.
 
