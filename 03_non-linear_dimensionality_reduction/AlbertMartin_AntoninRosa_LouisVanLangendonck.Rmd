@@ -320,6 +320,7 @@ for (k in k_values) {
   }
 }
 
+LC_lmds <- best_lcmc
 cat("Best Configuration - k:", best_k, "tau:", best_tau, "LCMC:", best_lcmc, "\n")
 ```
 
@@ -417,6 +418,7 @@ for (i in 1:length(perplexity)) {
 }
 
 best_k <- perplexity[which.max(LC)]
+LC_isomap <- max(LC)
 
 cat("Accordig to the LC-criteria, the best value of k is:", best_k, "\n")
 
@@ -523,6 +525,7 @@ for (i in 1:length(perplexity)){
 }
 
 best_perplexity <- perplexity[which.max(LC)]
+LC_tsne <- max(LC)
 
 best_Rtsne <- Rtsne(D1, perplexity=best_perplexity, dims=2,
                           theta=0, pca=FALSE, max_iter = 1000)
@@ -538,7 +541,7 @@ Looking at the 5 images that represent increasing value of the first dimension i
 ```{r}
 par(mfrow=c(2,3))
 for (i in 1:5) {
-  cat("Image for Point ", interesting_points[i], ":\n")
+  cat("Image for Point ", interesting_points[i])
   plot.zip(zero_data[interesting_points[i], ])
   title(interesting_points[i])
 }
@@ -559,13 +562,35 @@ for (i in 6:10) {
 
 ### a).
 
-```{r}
+The pairs function is used to see if dimensions of different methods might align. We find that this clearly is the case, however in some cases more than the others. 
 
+Most strikingly, the first dimension shows a clear relation:
+- All methods are directly proportional to each other, which indicates these methods find a similar most informative first representation dimension. 
+
+The second dimension also shows some proportionality, however, the correlation is less clear: 
+- Isomap and t-sne are kind of inversely proportional. 
+- t-sne and lmds are tend to be more or less directly proportional. 
+- Isomap and Lmds show a more clear negative correlation.
+
+Finally, looking at agreements between the dimensions:
+- Some minor positive correlations between tsne_dim2 and the first dimensions of all methods are found. This is the case as the 2-dimensional representation of tsne already shows some positive correlation and these methods all agree in that first dimension, hence these correlation show up again comparing to these other methods.
+
+```{r}
+df.methods <- data.frame(best_Rtsne$Y[,1],best_isomap$points[,1],
+                         best_configuration[,1],best_Rtsne$Y[,2],
+                         best_isomap$points[,2],best_configuration[,2])
+colnames(df.methods) <- c("Rtsne_dim1","Isomap_dim1",
+                          "Lmds_dim1","Rtsne_dim2",
+                          "Isomap_dim2","Lmds_dim2")
+pairs(df.methods)
 ```
 
 ### b).
 
-```{r}
+According to the local continuity meta criteria, the t-SNE gives the best results, hence representing the high-dimensional continuity very well in its lower-dimensional representation. Given that it seemed to be finding this representation the quickest of all three methods, it might be concluded its the strongest technique of the three.
 
+```{r}
+options <- c("Local MDS", "Isomap", "t-SNE")
+print(paste0("Method having the highest value for local continuity meta criteria is: ", options[which.max(c(LC_lmds, LC_isomap, LC_tsne))]))
 ```
 
