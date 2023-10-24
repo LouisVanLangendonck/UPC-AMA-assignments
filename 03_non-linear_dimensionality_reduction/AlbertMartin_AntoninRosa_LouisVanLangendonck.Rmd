@@ -1,0 +1,163 @@
+---
+title: "Non-linear dimensionality reduction. (Assignment)"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(princurve)
+```
+
+## Part A: Principal Curves
+
+### 1. Choosing the smoothing parameter in Principal Curves
+
+Generate dataset as instructed:
+```{r}
+t <- seq(-1.5*pi,1.5*pi,l=100)
+R<- 1
+n<-75
+sd.eps <- .15
+
+set.seed(1)
+y <- R*sign(t) - R*sign(t)*cos(t/R)
+x <- -R*sin(t/R)
+z <- (y/(2*R))^2
+rt <- sort(runif(n)*3*pi - 1.5*pi)
+eps <- rnorm(n)*sd.eps
+ry <- R*sign(rt) - (R+eps)*sign(rt)*cos(rt/R)
+rx <- -(R+eps)*sin(rt/R)
+rz <- (ry/(2*R))^2 + runif(n,min=-2*sd.eps,max=2*sd.eps)
+XYZ <- cbind(rx,ry,rz)
+
+
+require(plot3D)
+lines3D(x,y,z,colvar = NULL, 
+         phi = 20, theta = 60, r =sqrt(3), d =3, scale=FALSE,
+         col=2,lwd=4,as=1,
+         xlim=range(rx),ylim=range(ry),zlim=range(rz))
+points3D(rx,ry,rz,col=4,pch=19,cex=.6,add=TRUE)
+```
+
+
+#### a) LOOCV for df:
+To compute the Leave One Out Cross-Validation, we split the samples in five folds, and for each of them fit a Principal Curve to the other four folds, and compute the distance of the remaining fold to the fitted PC. The sum of this distance across all five folds is the score for each value of df, so the one that leads to the lowest sum of squared distances is computed in the end, which ends up being 8.
+
+```{r}
+#Generate random permutation for the data, which represents the folds
+set.seed(1)
+nfolds<-3
+foldSize<-n/nfolds
+perm<-sample(1:n,n)
+
+
+dfVals<-seq(2,8,by=1)
+dfDist<-rep(0,length(dfVals))
+for(dfIdx in 1:length(dfVals))
+{
+  df<-dfVals[dfIdx]
+  for(fold in 1:nfolds){
+    #Get each fold train and test splits
+    testPerm<-perm[((fold-1)*foldSize+1):(fold*foldSize)]
+    foldTrain=XYZ[-testPerm,]
+    foldTest=XYZ[testPerm,]
+    #Fit PC to train split
+    foldPC<-principal_curve(foldTrain,df=df)
+    #Get result from test split
+    foldDist<-project_to_curve(foldTest,foldPC$s)$dist
+    dfDist[dfIdx]<-dfDist[dfIdx]+foldDist
+  }
+}
+min(dfDist)
+df<-dfVals[which.min(dfDist)]
+pc<-principal_curve(XYZ,df=df)
+df
+```
+
+#### b) Visual representation of the curve
+
+We can plot the Principal Curve along with the real line and the sample points by using the returned projection of the data to the line as guide points. The plot shows how the calculated curve follows the same trend as the real line and sample data points, but it does not match the former perfectly. This is due to the error introduced artificially when generating the sample, which shifts the line along the direction of the random spread.
+
+We also notice the irregularities at the edges, which are a byproduct of a high df. This leads the PC to become less smooth as it tends to jump from data point to data point, which decreases ability to generalize.
+
+```{r}
+lines3D(x,y,z,colvar = NULL, 
+         phi = 20, theta = 60, r =sqrt(3), d =3, scale=FALSE,
+         col=2,lwd=4,as=1,
+         xlim=range(rx),ylim=range(ry),zlim=range(rz))
+lines3D(pc$s[,1],pc$s[,2],pc$s[,3],colvar = NULL, 
+         phi = 20, theta = 60, r =sqrt(3), d =3, scale=FALSE,
+         col=3,lwd=4,as=1,
+         xlim=range(rx),ylim=range(ry),zlim=range(rz),add=TRUE)
+points3D(rx,ry,rz,col=4,pch=19,cex=.6,add=TRUE)
+legend("topright", legend = c("Source line", "Principal Curve","Sample points"), 
+       col = c(2, 3, 4), lty = c(1, 1, 0), pch = c(NA, NA, 19), 
+       lwd = c(4, 4, NA), 
+       title = "Line", cex = 0.8)
+```
+
+#### c) LOOCV for df=50
+
+To compute the Leave One Out Cross-Validation, we split the samples in five folds, and for each of them fit a Principal Curve to the other four folds, and compute the distance of the remaining fold to the line just as in ex.1 but with df=50.
+
+Before computing this value, we believe it will be worse as before, from just increasing df from 6 to 8 it already showed clear signs of overfitting, with 50 it should be much more extreme.
+
+```{r}
+set.seed(1)
+nfolds<-5
+foldSize<-n/nfolds
+perm<-sample(1:n,n)
+distSum<-0
+for(fold in 1:nfolds){
+  testPerm<-perm[((fold-1)*foldSize+1):(fold*foldSize)]
+  foldTrain=XYZ[-testPerm,]
+  foldTest=XYZ[testPerm,]
+  foldPC<-principal_curve(foldTrain,df=50)
+  foldDist<-project_to_curve(foldTest,foldPC$s)$dist
+  distSum<-distSum+foldDist
+}
+distSum
+```
+
+As expected, the new curve is even less smooth. In fact, it pretty much just jumps from point to point. While the LOOCV score is better than for df=8, the newly fitted PC is clearly less generalizable than before, which shows us that simply using the LOOCV score is not enough to determine which value for df is the ideal one.
+
+We believe this behavior is due to the fact that the error is measured as the squared distance from the point to the line, and this value does not change much regardless of whether the fitted line is exactly like the real one, or that line is jumping between two close points. Even if it is visually clear that the new line does not adjust to the reality, the distances from the point to the real line are not that far off from the distances to the fitted line that jumps around other close data points.
+
+```{r}
+pc<-principal_curve(XYZ,df=50)
+lines3D(x,y,z,colvar = NULL, 
+         phi = 20, theta = 60, r =sqrt(3), d =3, scale=FALSE,
+         col=2,lwd=4,as=1,
+         xlim=range(rx),ylim=range(ry),zlim=range(rz))
+lines3D(pc$s[,1],pc$s[,2],pc$s[,3],colvar = NULL, 
+         phi = 20, theta = 60, r =sqrt(3), d =3, scale=FALSE,
+         col=3,lwd=4,as=1,
+         xlim=range(rx),ylim=range(ry),zlim=range(rz),add=TRUE)
+points3D(rx,ry,rz,col=4,pch=19,cex=.6,add=TRUE)
+legend("topright", legend = c("Source line", "Principal Curve","Sample points"), 
+       col = c(2, 3, 4), lty = c(1, 1, 0), pch = c(NA, NA, 19), 
+       lwd = c(4, 4, NA), 
+       title = "Line", cex = 0.8)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
