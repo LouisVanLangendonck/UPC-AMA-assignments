@@ -1,0 +1,98 @@
+---
+title: 'assignment: Local Linear Regression'
+author: "AlbertMartin_AntoninRosa_LouisVanLangendonck"
+date: "2023-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(sm)
+```
+
+```{r}
+data(aircraft)
+help(aircraft)
+attach(aircraft)
+lgPower <- log(Power)
+lgSpan <- log(Span)
+lgLength <- log(Length)
+lgWeight <- log(Weight)
+lgSpeed <- log(Speed)
+lgRange <- log(Range)
+```
+
+```{r}
+plot(Yr, lgWeight)
+```
+```{r}
+source("locpolreg.R")
+```
+
+```{r}
+h.cv <- h.select(x=Yr,y=lgWeight,method="cv")
+res_hcv <- locpolreg(x=Yr,y=lgWeight,h=h.cv,q=1,r=0,main=sprintf("q=1,h=%.2f", h.cv))
+```
+
+```{r}
+h.cv.gcv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
+                                       log(diff(range(x))/4),l=10)), 
+                     p=1,type.kernel="normal"){
+  n <- length(x)
+  cv <- h.v*0
+  gcv <- h.v*0
+  for (i in (1:length(h.v))){
+    h <- h.v[i]
+    aux <- locpolreg(x=x,y=y,h=h,p=p,tg=x,
+                     type.kernel=type.kernel, doing.plot=FALSE)
+    S <- aux$S
+    h.y <- aux$mtgr
+    hii <- diag(S)
+    av.hii <- mean(hii)
+    cv[i] <- sum(((y-h.y)/(1-hii))^2)/n
+    gcv[i] <- sum(((y-h.y)/(1-av.hii))^2)/n
+  }
+  return(list(h.v=h.v,cv=cv,gcv=gcv))
+}
+```
+
+```{r}
+cand_h <- unlist(h.cv.gcv(Yr,lgWeight,p=1)[1])
+PMSE_loocv <- unlist(h.cv.gcv(Yr,lgWeight,p=1)[2])
+plot(cand_h, PMSE_loocv, xlab = 'Candidate h', ylab='PMSE-loo-cv')
+h_loocv <- cand_h[(which(PMSE_loocv == min(PMSE_loocv)))]
+```
+
+```{r}
+res_h_loocv <- locpolreg(x=Yr,y=lgWeight,h=h_loocv,q=1,r=0,main=sprintf("q=1,h=%.2f", h_loocv))
+m_hat <- res_h_loocv$mtgr
+```
+
+
+```{r}
+eps_hat <- lgWeight - m_hat
+z <- log(eps_hat^2)
+cand_h_q <- unlist(h.cv.gcv(Yr,z,p=1)[1])
+PMSE_loocv_q <- unlist(h.cv.gcv(Yr,z,p=1)[2])
+h_loocv_q <- cand_h_q[(which(PMSE_loocv_q == min(PMSE_loocv_q)))]
+q_hat <- locpolreg(x=Yr,y=z,h=h_loocv_q,q=1,r=0,main=sprintf("q=1,h=%.2f", h_loocv_q))
+```
+
+```{r}
+var_hat <- exp(q_hat$mtgr)
+std_hat <- sqrt(var_hat)
+plot(Yr,eps_hat^2,pch=16, col='black')
+points(Yr,var_hat,col='red',pch=16)
+legend('topleft', legend = c('eps_hat^2', 'var_hat'), pch=c(16,16), col=c('black','red'))
+```
+
+```{r}
+plot(Yr, lgWeight, col='lightgrey')
+lines(Yr, m_hat)
+lines(Yr, (m_hat+1.96*std_hat), col = 'red')
+lines(Yr, (m_hat-1.96*std_hat), col = 'red')
+```
+
