@@ -5,15 +5,16 @@ date: "2023-11-10"
 output: html_document
 ---
 
+# Estimating the conditional variance
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-library(sm)
-```
+Loading in the data and applying some data transformations. 
 
 ```{r}
+library(sm)
 data(aircraft)
 help(aircraft)
 attach(aircraft)
@@ -25,28 +26,34 @@ lgSpeed <- log(Speed)
 lgRange <- log(Range)
 ```
 
+Plotting the variables/relation of interest.
+
 ```{r}
 plot(Yr, lgWeight)
 ```
+
+Loading in functions for running local polynomial regressions.
+
 ```{r}
 source("locpolreg.R")
 ```
 
-```{r}
-h.cv <- h.select(x=Yr,y=lgWeight,method="cv")
-res_hcv <- locpolreg(x=Yr,y=lgWeight,h=h.cv,q=1,r=0,main=sprintf("q=1,h=%.2f", h.cv))
-```
+## Part A: Optimizing bandwidth h using leave-one-out cross-validation
+
+From the course, we take over the following handwritten function to implement Leave-one-out-cross-validation (loo-cv) to select the bandwidth h. Two small adaptations are made:
+- Increasing the candidate h values from 10 to 20 to have a more fine-grained value h-value representing the minimum cv-value. 
+- rename the p variable to q, following the naming conventions of the locpolreg function.
 
 ```{r}
 h.cv.gcv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
-                                       log(diff(range(x))/4),l=10)), 
-                     p=1,type.kernel="normal"){
+                                       log(diff(range(x))/4),l=20)), 
+                     q=1,type.kernel="normal"){
   n <- length(x)
   cv <- h.v*0
   gcv <- h.v*0
   for (i in (1:length(h.v))){
     h <- h.v[i]
-    aux <- locpolreg(x=x,y=y,h=h,p=p,tg=x,
+    aux <- locpolreg(x=x,y=y,h=h,q=q,tg=x,
                      type.kernel=type.kernel, doing.plot=FALSE)
     S <- aux$S
     h.y <- aux$mtgr
@@ -59,35 +66,58 @@ h.cv.gcv <- function(x,y,h.v = exp(seq(log(diff(range(x))/20),
 }
 ```
 
+We run this function and find optimal h (see plot of candidate h vs. PMSE-loocv value.). We use a local linear regression (so q = 1)
+
 ```{r}
-cand_h <- unlist(h.cv.gcv(Yr,lgWeight,p=1)[1])
-PMSE_loocv <- unlist(h.cv.gcv(Yr,lgWeight,p=1)[2])
-plot(cand_h, PMSE_loocv, xlab = 'Candidate h', ylab='PMSE-loo-cv')
-h_loocv <- cand_h[(which(PMSE_loocv == min(PMSE_loocv)))]
+h.cv_run <- h.cv.gcv(Yr,lgWeight,q=1) # Run Custom CV function
+cand_h <- unlist(h.cv_run[1]) # Representing all the 20 candidate h's
+PMSE_loocv <- unlist(h.cv_run[2]) # Each of the LooCV values.
+plot(cand_h, PMSE_loocv, xlab = 'Candidate h', ylab='PMSE-loocv')
+h_loocv <- cand_h[(which(PMSE_loocv == min(PMSE_loocv)))] # Select h with minimum loocv.
+abline(v=h_loocv, col="blue")
+legend('topleft', lty=1, col="blue", legend=c(sprintf('Minimum at h = %.2f', h_loocv)))
 ```
+
+### 1.  Fit a nonparametric regression
+
+For this optimal loocv value we now run and plot the local linear regression.
 
 ```{r}
 res_h_loocv <- locpolreg(x=Yr,y=lgWeight,h=h_loocv,q=1,r=0,main=sprintf("q=1,h=%.2f", h_loocv))
 m_hat <- res_h_loocv$mtgr
 ```
 
+### 2-3.  Transform the estimated residuals and fit non-param regression to these transformed residuals
+
+We estimate the logarithm of the conditional variance as follows:
+- Applying log of square of the estimated residuals.  
+- Estimate the best bandwidth to apply a local linear regressions (see plot) to these transformed values using loocv.
+- for that optimal h-value, run local linear regr and call the results q (the log of estimated conditional variance)
 
 ```{r}
 eps_hat <- lgWeight - m_hat
 z <- log(eps_hat^2)
-cand_h_q <- unlist(h.cv.gcv(Yr,z,p=1)[1])
-PMSE_loocv_q <- unlist(h.cv.gcv(Yr,z,p=1)[2])
+cand_h_q <- unlist(h.cv.gcv(Yr,z,q=1)[1])
+PMSE_loocv_q <- unlist(h.cv.gcv(Yr,z,q=1)[2])
 h_loocv_q <- cand_h_q[(which(PMSE_loocv_q == min(PMSE_loocv_q)))]
 q_hat <- locpolreg(x=Yr,y=z,h=h_loocv_q,q=1,r=0,main=sprintf("q=1,h=%.2f", h_loocv_q))
 ```
+
+### 4.  Estimate conditional variance
+
+We now estimate the conditional variance at each observation of year by applying an exponential transformation on the q-values and plot these values on top of the square of estimated residuals. 
 
 ```{r}
 var_hat <- exp(q_hat$mtgr)
 std_hat <- sqrt(var_hat)
 plot(Yr,eps_hat^2,pch=16, col='black')
 points(Yr,var_hat,col='red',pch=16)
-legend('topleft', legend = c('eps_hat^2', 'var_hat'), pch=c(16,16), col=c('black','red'))
+legend('topleft', legend = c('eps_hat^2', 'cond_var'), pch=c(16,16), col=c('black','red'))
 ```
+
+### 5. Confidence bands
+
+Now we plot the 'confidence regions' of the estimated conditional variance (so 1.96 times its square-root, the standard deviation). 
 
 ```{r}
 plot(Yr, lgWeight, col='lightgrey')
@@ -95,4 +125,7 @@ lines(Yr, m_hat)
 lines(Yr, (m_hat+1.96*std_hat), col = 'red')
 lines(Yr, (m_hat-1.96*std_hat), col = 'red')
 ```
+
+## Part B: Optimizing bandwidth h using direct plug-in.
+
 
