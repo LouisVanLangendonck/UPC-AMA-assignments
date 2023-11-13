@@ -2,7 +2,9 @@
 title: 'assignment: Local Linear Regression'
 author: "AlbertMartin_AntoninRosa_LouisVanLangendonck"
 date: "2023-11-10"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 # Estimating the conditional variance
@@ -128,4 +130,48 @@ lines(Yr, (m_hat-1.96*std_hat), col = 'red')
 
 ## Part B: Optimizing bandwidth h using direct plug-in.
 
+### 1.  Fit a nonparametric regression
 
+```{r}
+library(KernSmooth)
+
+bandwidth_lgWeight <- dpill(Yr, lgWeight)
+
+sm_model1 <- sm.regression(x = Yr, y = lgWeight, method = "none", h = bandwidth_lgWeight, eval.points = Yr)
+
+
+
+```
+
+### 2. Transform the estimated residuals
+
+```{r}
+residuals <- lgWeight - sm_model1$estimate
+z <- log(residuals^2)
+```
+
+### 3. Fit a non parametric regression
+
+```{r}
+bandwidth <- dpill(Yr, z)
+
+sm_model2 <- sm.regression(x = Yr, y = z, method = "none", h = bandwidth, eval.points = Yr)
+```
+
+### 4. Estimate $\sigma ^2$
+
+```{r}
+sigma_squared_estimate <- exp(sm_model2$estimate)
+
+# Visualize the results
+plot(Yr, sigma_squared_estimate, main = "Estimated sigma^2(x)", xlab = "Yr", ylab = "sigma^2(x)")
+```
+
+### 5. Confidence bands
+
+```{r}
+plot(Yr, lgWeight, col='lightgrey')
+lines(Yr, sm_model1$estimate)
+lines(Yr, (sm_model1$estimate+1.96*sm_model2$estimate), col = 'red')
+lines(Yr, (sm_model1$estimate-1.96*sm_model2$estimate), col = 'red')
+```
