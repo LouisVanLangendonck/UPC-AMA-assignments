@@ -1,5 +1,5 @@
 ---
-title: 'assignment: Local Linear Regression'
+title: 'Assignment: Local Linear Regression'
 author: "AlbertMartin_AntoninRosa_LouisVanLangendonck"
 date: "2023-11-10"
 output:
@@ -43,6 +43,7 @@ source("locpolreg.R")
 ## Part A: Optimizing bandwidth h using leave-one-out cross-validation
 
 From the course, we take over the following handwritten function to implement Leave-one-out-cross-validation (loo-cv) to select the bandwidth h. Two small adaptations are made:
+
 - Increasing the candidate h values from 10 to 20 to have a more fine-grained value h-value representing the minimum cv-value. 
 - rename the p variable to q, following the naming conventions of the locpolreg function.
 
@@ -92,6 +93,7 @@ m_hat <- res_h_loocv$mtgr
 ### 2-3.  Transform the estimated residuals and fit non-param regression to these transformed residuals
 
 We estimate the logarithm of the conditional variance as follows:
+
 - Applying log of square of the estimated residuals.  
 - Estimate the best bandwidth to apply a local linear regressions (see plot) to these transformed values using loocv.
 - for that optimal h-value, run local linear regr and call the results q (the log of estimated conditional variance)
@@ -131,47 +133,54 @@ lines(Yr, (m_hat-1.96*std_hat), col = 'red')
 ## Part B: Optimizing bandwidth h using direct plug-in.
 
 ### 1.  Fit a nonparametric regression
+Now this initial regression is fitted using sm.regression, and the ideal bandwidth is computed using the dpill function.
 
 ```{r}
 library(KernSmooth)
 
 bandwidth_lgWeight <- dpill(Yr, lgWeight)
 
-sm_model1 <- sm.regression(x = Yr, y = lgWeight, method = "none", h = bandwidth_lgWeight, eval.points = Yr)
-
-
+sm_model1 <- sm.regression(x = Yr, y = lgWeight, h = bandwidth_lgWeight, eval.points = Yr)
 
 ```
 
 ### 2. Transform the estimated residuals
 
+Using the estimated y values, we compute the residuals as before and transform them to obtain the samples of Z.
 ```{r}
-residuals <- lgWeight - sm_model1$estimate
-z <- log(residuals^2)
+eps_hat <- lgWeight - sm_model1$estimate
+z <- log(eps_hat^2)
 ```
 
 ### 3. Fit a non parametric regression
 
+With these estimates of Z, the second regression is fitted from the same x, analogous to the first exercise but with the new method for finding the ideal bandwidth and the fitting the regression.
+
 ```{r}
 bandwidth <- dpill(Yr, z)
 
-sm_model2 <- sm.regression(x = Yr, y = z, method = "none", h = bandwidth, eval.points = Yr)
+sm_model2 <- sm.regression(x = Yr, y = z, h = bandwidth, eval.points = Yr)
 ```
 
-### 4. Estimate $\sigma ^2$
+### 4. Estimate conditional variance
+
+This model is now able to obtain estimates for the log of the conditional variance, and so these are transformed to obtain the estimates for the conditional variance.
 
 ```{r}
-sigma_squared_estimate <- exp(sm_model2$estimate)
-
-# Visualize the results
-plot(Yr, sigma_squared_estimate, main = "Estimated sigma^2(x)", xlab = "Yr", ylab = "sigma^2(x)")
+var_hat <- exp(sm_model2$estimate)
+std_hat <- sqrt(var_hat)
+plot(Yr,eps_hat^2,pch=16, col='black')
+points(Yr,var_hat,col='red',pch=16)
+legend('topleft', legend = c('eps_hat^2', 'cond_var'), pch=c(16,16), col=c('black','red'))
 ```
 
 ### 5. Confidence bands
 
+Now that we have the estimate for the value and standard error for every x, we can plot both the value line and confidence bands, as done in the first exercise.
+
 ```{r}
 plot(Yr, lgWeight, col='lightgrey')
 lines(Yr, sm_model1$estimate)
-lines(Yr, (sm_model1$estimate+1.96*sm_model2$estimate), col = 'red')
-lines(Yr, (sm_model1$estimate-1.96*sm_model2$estimate), col = 'red')
+lines(Yr, (sm_model1$estimate+1.96*std_hat), col = 'red')
+lines(Yr, (sm_model1$estimate-1.96*std_hat), col = 'red')
 ```
