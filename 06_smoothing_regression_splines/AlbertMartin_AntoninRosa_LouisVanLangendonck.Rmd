@@ -1,0 +1,50 @@
+---
+title: "Smoothing and regression splines"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+### Question 1
+
+#### Question a
+
+```{r}
+load("bikes.Washington.Rdata")
+
+spline_fit_cv <- smooth.spline(bikes$instant, bikes$cnt, cv = TRUE)
+
+# Extract information from the fit with cross-validation
+lambda_cv <- spline_fit_cv$spar
+lambda_cv
+```
+
+The value of the chosen penalty parameter $\lambd$ is 0.2395109, determined by cross-validation.
+
+#### Question b
+
+```{r}
+df_cv <- spline_fit_cv$df
+df_cv
+```
+
+The value of df determined by cross-validation is 95.68039.
+#### Question c
+
+```{r}
+knots_cv <- spline_fit_cv$fit$knot
+print(length(knots_cv))
+```
+
+During the smoothing and the regression 140 knots have been used.
+
+#### Question d
+
+```{r}
+plot(bikes$instant, bikes$cnt, main = "Scatterplot and Estimated Regression Function (CV)",
+     xlab = "instant", ylab = "cnt", col = "blue")
+lines(spline_fit_cv, col = "red")
+```
