@@ -12,19 +12,19 @@ output:
 
 #### Question a
 
-We load in the data and apply the smooth.spline function to find smoothing parameters. To use the generalized cross validation parameter, we have to specify cv = false (is true it is ordinary leave-one-out cross-validation)
+We load in the data and apply the smooth.spline function to find smoothing parameters. To use the generalized cross validation parameter, we have to specify cv = false (if true it is ordinary leave-one-out cross-validation). We also explicitly ensure only a subset of the provided x will be used as knots with all.knots=False.
 
 ```{r}
 load("bikes.Washington.Rdata")
 
 spline_fit_cv <- smooth.spline(bikes$instant, bikes$cnt, cv = FALSE, all.knots = FALSE)
 
-# Extract information from the fit with cross-validation
-lambda_cv <- spline_fit_cv$spar
+# Lambda is the weight of the penalization term:
+lambda_cv <- spline_fit_cv$lambda
 lambda_cv
 ```
 
-The value of the chosen penalty parameter $\lambda$ is 0.24802, determined by generalized cross-validation.
+The value of the chosen penalty parameter $\lambda$ is $10^-7$, determined by generalized cross-validation to be the one that lead the the best likelihood.
 
 #### Question b
 
@@ -33,7 +33,7 @@ df_cv <- spline_fit_cv$df
 df_cv
 ```
 
-The value of df determined by cross-validation is 93.34091.
+The equivalent degrees of freedom of the optimal model determined by cross-validation is 93.34091.
 
 #### Question c
 
@@ -42,7 +42,7 @@ knots_cv <- spline_fit_cv$fit$knot
 print(length(knots_cv))
 ```
 
-During the smoothing and the regression 140 knots have been used.
+Cross Validation has resulted in the best model having 140 knots.
 
 #### Question d
 
@@ -69,20 +69,29 @@ source("IRWLS_logistic_regression.R")
 
 ### Question a
 
+
+The function is called in order to obtain the nonparametric logistic regression with the given parameters. 
+
+The data points are plotted, along with the fitted values from the regression, and the thresholds of 50% probability are highlighted with vertical and horizontal lines.
+
 ```{r}
 spline.irwls.bike <- logistic.IRWLS.splines(x=bikes$temp, y=cnt.5000, df=6)
 
 plot(bikes$temp,cnt.5000)
 lines(bikes$temp,spline.irwls.bike$fitted.values,col=3)
 temp.int.start <- min(bikes$temp[which(spline.irwls.bike$fitted.values>0.5)])
+temp.int.start
 temp.int.end <- max(bikes$temp[which(spline.irwls.bike$fitted.values>0.5)])
+temp.int.end
 abline(h=0.5,col=2)
 abline(v=temp.int.start,col=4)
 abline(v=temp.int.end,col=4)
 ```
 
 ### Question b
+We generate 5 folds for the given dataset, and for each of these folds we perform the usual fit with 4 of the folds and the validation with the remaining unseen fold, and the scores are aggregated for a final likelihood. This procedure is repeated for each parameter candidate, and the one that leads to the best value will be the one chosen.
 
+We have plotted how this log likelihood evolves as the number of degrees of freedom increases, and it is clear that for df=8 this value is maximized.
 ```{r}
 #install.packages("caret")
 require(caret)
@@ -106,9 +115,11 @@ for (df.proposal in df.v){
 plot(df.v, loglik.dfs)
 abline(v=df.v[which.max(loglik.dfs)],col=4)
 ```
+Using this optimal value of df, we fit again the nonparametric regression and plot the same information as before.
+
 
 ```{r}
-spline.irwls.bike.loglike <- logistic.IRWLS.splines(x=bikes$temp, y=cnt.5000, df=4)
+spline.irwls.bike.loglike <- logistic.IRWLS.splines(x=bikes$temp, y=cnt.5000, df=8)
 plot(bikes$temp,cnt.5000)
 lines(bikes$temp,spline.irwls.bike.loglike$fitted.values,col=3)
 temp.int.start <- min(bikes$temp[which(spline.irwls.bike.loglike$fitted.values>0.5)])
