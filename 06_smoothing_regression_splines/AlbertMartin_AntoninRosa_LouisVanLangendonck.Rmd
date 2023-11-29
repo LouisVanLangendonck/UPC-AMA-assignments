@@ -12,17 +12,19 @@ output:
 
 #### Question a
 
+We load in the data and apply the smooth.spline function to find smoothing parameters. To use the generalized cross validation parameter, we have to specify cv = false (is true it is ordinary leave-one-out cross-validation)
+
 ```{r}
 load("bikes.Washington.Rdata")
 
-spline_fit_cv <- smooth.spline(bikes$instant, bikes$cnt, cv = TRUE)
+spline_fit_cv <- smooth.spline(bikes$instant, bikes$cnt, cv = FALSE, all.knots = FALSE)
 
 # Extract information from the fit with cross-validation
 lambda_cv <- spline_fit_cv$spar
 lambda_cv
 ```
 
-The value of the chosen penalty parameter $\lambd$ is 0.2395109, determined by cross-validation.
+The value of the chosen penalty parameter $\lambda$ is 0.24802, determined by generalized cross-validation.
 
 #### Question b
 
@@ -31,7 +33,8 @@ df_cv <- spline_fit_cv$df
 df_cv
 ```
 
-The value of df determined by cross-validation is 95.68039.
+The value of df determined by cross-validation is 93.34091.
+
 #### Question c
 
 ```{r}
@@ -47,4 +50,70 @@ During the smoothing and the regression 140 knots have been used.
 plot(bikes$instant, bikes$cnt, main = "Scatterplot and Estimated Regression Function (CV)",
      xlab = "instant", ylab = "cnt", col = "blue")
 lines(spline_fit_cv, col = "red")
+```
+
+### Question 2
+
+Creating the new cnt.5000 binary variable that sets 1 when bike counts are higher or equal to 5000.
+
+```{r}
+cnt.5000 <- rep(0, length(bikes$cnt))
+cnt.5000[which(bikes$cnt>=5000)] <- 1
+```
+
+Loading in the R function that implements the IRWLS algorithm.
+
+```{r}
+source("IRWLS_logistic_regression.R")
+```
+
+### Question a
+
+```{r}
+spline.irwls.bike <- logistic.IRWLS.splines(x=bikes$temp, y=cnt.5000, df=6)
+
+plot(bikes$temp,cnt.5000)
+lines(bikes$temp,spline.irwls.bike$fitted.values,col=3)
+temp.int.start <- min(bikes$temp[which(spline.irwls.bike$fitted.values>0.5)])
+temp.int.end <- max(bikes$temp[which(spline.irwls.bike$fitted.values>0.5)])
+abline(h=0.5,col=2)
+abline(v=temp.int.start,col=4)
+abline(v=temp.int.end,col=4)
+```
+
+### Question b
+
+```{r}
+#install.packages("caret")
+require(caret)
+flds <- createFolds(cnt.5000, k = 5, list = TRUE)
+
+df.v = 3:15
+
+loglik.dfs <- c()
+for (df.proposal in df.v){
+  loglik.folds <- c()
+  for (i in (1:length(flds))){
+    spline.irwls.bike.ifold <-  logistic.IRWLS.splines(x=bikes$temp[-unlist(flds[i])],y=cnt.5000[-unlist(flds[i])],x.new=bikes$temp[unlist(flds[i])],df=df.proposal)
+    
+    # log_likelihood_binary = sum_i[(yi*log(p(xi)) + ((1-yi)*log(1-p(xi)))]
+    loglik_term1 <- cnt.5000[unlist(flds[i])]*log(spline.irwls.bike.ifold$predicted.values)
+    loglik_term2 <- (1-cnt.5000[unlist(flds[i])])*log(1-(spline.irwls.bike.ifold$predicted.values))
+    loglik.folds <- c(loglik.folds,sum(loglik_term1 + loglik_term2))
+  }
+  loglik.dfs <- c(loglik.dfs, sum(loglik.folds))
+}
+plot(df.v, loglik.dfs)
+abline(v=df.v[which.max(loglik.dfs)],col=4)
+```
+
+```{r}
+spline.irwls.bike.loglike <- logistic.IRWLS.splines(x=bikes$temp, y=cnt.5000, df=4)
+plot(bikes$temp,cnt.5000)
+lines(bikes$temp,spline.irwls.bike.loglike$fitted.values,col=3)
+temp.int.start <- min(bikes$temp[which(spline.irwls.bike.loglike$fitted.values>0.5)])
+temp.int.end <- max(bikes$temp[which(spline.irwls.bike.loglike$fitted.values>0.5)])
+abline(h=0.5,col=2)
+abline(v=temp.int.start,col=4)
+abline(v=temp.int.end,col=4)
 ```
