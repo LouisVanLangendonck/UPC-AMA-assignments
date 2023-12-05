@@ -1,0 +1,84 @@
+---
+title: "GAMS fits for hirsutism data"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+### GAMs for hirsutism data
+
+First model : 
+
+```{r}
+gam_model1 <- gam(FGm12 ~ s(FGm0) + s(SysPres) + s(DiaPres) + s(weight) + s(height) + s(Treatment, k = 4), data = data)
+summary(gam_model1)
+vis.gam(gam_model1)
+gam.check(gam_model1)
+```
+
+If we look at the summary only two parameters have a p-value inferior to 0.1 : FGm0, Treatment and SysPres.
+
+Then, the gam check suggest the relation with height, weight and syspres is linear.
+
+Second model :
+
+```{r}
+gam_model2 <- gam(FGm12 ~ s(FGm0) + SysPres + s(DiaPres) + weight + height + s(Treatment, k = 3), data = data)
+summary(gam_model2)
+vis.gam(gam_model2)
+gam.check(gam_model2)
+```
+
+In looking the summary for the next model we should try to remove DiaPres en weight.
+
+Third model : 
+
+```{r}
+gam_model3 <- gam(FGm12 ~ s(FGm0) + s(SysPres) + s(height) + s(Treatment, k=4), data = data)
+summary(gam_model3)
+vis.gam(gam_model3)
+gam.check(gam_model3)
+```
+
+If wee look at the p-value of gam.check, we should try with SysPres, FGm0 and Treatment in linear parameter.
+
+Fourth model : 
+
+```{r}
+gam_model4 <- gam(FGm12 ~ FGm0 + SysPres + s(height) + Treatment, data = data)
+summary(gam_model4)
+vis.gam(gam_model4)
+gam.check(gam_model4)
+```
+
+All the p-values in the summary are under 0.05 however the p-value of the gam.check can suggest us to try with height in linear parameter.
+
+Fifth model : 
+
+```{r}
+gam_model5 <- gam(FGm12 ~ FGm0 + SysPres + height + Treatment, data = data)
+summary(gam_model5)
+vis.gam(gam_model5)
+gam.check(gam_model5)
+```
+
+This model is bad because two parameters have p-value superior to 0.1.
+
+ANOVA Results : 
+
+```{r}
+gam_model5 <- gam(FGm12 ~ FGm0 + SysPres + Treatment, data = data)
+
+gam_model6 <- gam(FGm12 ~ SysPres + Treatment, data = data)
+
+anova_result_4_5 <- anova(gam_model4, gam_model5, test = "Chisq")
+print(anova_result_4_5)
+
+anova_result_5_6 <- anova(gam_model5, gam_model6, test = "Chisq")
+print(anova_result_5_6)
+```
+
+According to the ANOVA, these three models appear equivalent as the p-values are below 0.05.
