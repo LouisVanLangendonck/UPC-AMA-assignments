@@ -1,0 +1,216 @@
+---
+title: "GAM fits for hirsutism data"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output: html_document
+---
+
+Loading in mgcv package for the gam function and loading in the Hirsutism dataset. 
+
+```{r}
+library(mgcv)
+
+hirs <- read.table("hirsutism.dat",header=T, sep="\t",fill=TRUE)
+```
+
+For preprocessing we take the following steps: 
+- We set the treatment levels as factor. We remove the two variables not used for analysis: FGm3 and FGm6m. 
+- We convert the height and FGm12 variables from string to numeric. 
+- Lastly, we omit the rows containing NA values (9 rows), because if we don't, models that use only variables not containing NAs will be using more data than other which makes comparing them difficult. 
+
+```{r}
+hirs$Treatment <- as.factor(hirs$Treatment)
+data = hirs[,!(names(hirs) %in% c('FGm3','FGm6'))]
+data$height <- as.numeric(data$height)
+data$FGm12 <- as.numeric(data$FGm12)
+data <- na.omit(data)
+```
+
+For data exploration, we plot all variables against eachother to get an initial idea of how they relate to each-other. Some initial take-aways seem to be possible collinearity between the two pressure variables and the weight with height and both pressure variables. It is also noticeable how the target feature has significant correlation with the baseline value FGm0. Finally, it might me important to point out that the data points seem to be slightly dfferently distributed depending on the treatment category, as showcased by the pairplot treatement column. This might indicate that different levels of smoothing will be needed for these categories.
+
+Also note that only 91 datapoints are available in the dataset, which means that our models might easily be overly complex / overfitting.
+
+```{r}
+pairs(data)
+nrow(data)
+cor(data[,-1])
+```
+
+We also believe it might be helpful to study how these variables might present different relationships depending on the treatment value:
+
+```{r}
+for(i in c(2,4,5,6,7)){
+  plot(data[,i],data[,3],col=data[,2],xlab = colnames(data)[i],ylab=colnames(data)[3])
+}
+```
+
+
+
+As a baseline, the first model we start from is a glm model using all the explanatory variables available and look at its summary.
+
+This will allow us to understand which of the variables are can be useful by themselves in the prediction of the target feature.
+
+```{r}
+gam0 <- gam(FGm12 ~ FGm0 + Treatment + SysPres + DiaPres + weight + height, data = data)
+
+summary(gam0)
+```
+
+We notice low explained deviance and insignificant variable contributions (the pressure, weight and height variables). This is easily explainable from the correlation matrix shown before, since these three variables are almost completely uncorrelated with the target, meaning they are not useful in a linear model.
+
+Let's now try a variable where smooth terms are applied to each predictor (Generalized Additive Model) except for treatment as it is a factor (so semi-parametric). Interaction between the factor and numericals will be looked into later. Compare the model to the GLM using an anova test (ANOVA tests whether the more complex model is significantly better at capturing the data than the simpler model or not in relation to the added complexity).
+
+```{r}
+gam1 <- gam(FGm12 ~ s(FGm0) + Treatment + s(SysPres) + s(DiaPres) + s(weight) + s(height), data = data)
+
+summary(gam1)
+anova(gam0, gam1, test='F')
+```
+We see that the more complex GAM model performs significantly better than the GLM. First we notice that Syspress, weight and height don't need smoothing as their edf is 1. This can be confirmed by the following plots and vis-plots where only DiaPress shows serious curvature. Combined linear variables give these flat surfaces.
+
+These first ones whocase how the smoothings compute linear functions, meaning they can be removed:
+
+```{r}
+plot(gam1,residuals = T,shade = T, cex=4,col=data$Treatment)
+```
+
+As stated before, combinations provide flat surfaces:
+
+```{r}
+vis.gam(gam1, view=c("weight","height"),
+        theta = 0, phi = 10, r = sqrt(3), d = 1)
+
+vis.gam(gam1, view=c("SysPres","height"),
+        theta = 0, phi = 30, r = sqrt(3), d = 1)
+
+vis.gam(gam1, view=c("SysPres","height"),
+        theta = 0, phi = 30, r = sqrt(3), d = 1)
+```
+
+We try making these predictors back linear and see with the Anova test if this model is preferred.
+
+```{r}
+gam1.0 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + s(DiaPres) + weight + height, data = data)
+summary(gam1.0)
+anova(gam1, gam1.0, test='F')
+```
+
+Both deviance and df are the same, which is the expected behaviour as we only removed the s() from those parameters for which it was deemed unnecessary. Still, since the linear is equivalent and simpler, we chose that one.
+
+However, we note that there are terms that are not significant in prediction. we remove these one-by-one (based on descending p-value) until all variables are significant.
+
+```{r}
+gam1.1 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + weight + height, data = data)
+summary(gam1.1)
+gam1.2 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + weight, data = data)
+summary(gam1.2)
+gam1.3 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres, data = data)
+summary(gam1.3)
+gam1.4 <- gam(FGm12 ~ s(FGm0) + Treatment, data = data)
+summary(gam1.4)
+anova(gam1.0, gam1.1,gam1.2,gam1.3,gam1.4, test='F')
+anova(gam1.0,gam1.4,test='F')
+```
+We see how the more complex model has lower deviance than the simpler one, as expected. Since the anova test does not give any evidence the decrease in complexity warrants the increase in deviance we will keep the complex model, since these unimportant variables seem to be doing at least something that helps the model in certain cases.
+
+Before looking at tensor products and numerical-factor interactions, lets try to get insight in the gam1.0 model by using some visualizations.
+
+This following plot shows how smoothing the FGm0, and to less effect also DiaPres, variables clearly increases predictive power by allowing nonlinearities to be represented, meaning the choice of keeping them with a smoothing is correct.
+
+```{r}
+plot(gam1.0,residuals=TRUE, shade=TRUE, cex=2, lwd=2)
+```
+
+This gam check plot shows are model more or less captures the data well, as the residuals do not seem to increase signficantly in variance nor do the predicted values, and they seem more or less normally distributed enough.
+
+```{r}
+par(mfrow=c(2,2))
+gam.check(gam1.0)
+```
+
+Now tensor products are looked into. Three variable combinations of the ramaining variables are made. An anova test between the resulting models is also done, although we also compare the performance and usefulness of each combination.
+
+```{r}
+gam2.1 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + s(DiaPres) + weight + height + te(SysPres, weight) + te(DiaPres, height), data = data)
+
+gam2.2 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + s(DiaPres) + weight + height + te(DiaPres, weight) + te(SysPres, height), data = data)
+
+gam2.3 <- gam(FGm12 ~ s(FGm0) + Treatment + SysPres + s(DiaPres) + weight + height + te(height, weight) + te(SysPres, DiaPres), data = data)
+
+summary(gam2.1)
+summary(gam2.2)
+summary(gam2.3)
+anova(gam2.1, gam2.2, gam2.3, test='F')
+```
+
+We see that model gam2.2 has a severe decrease in deviance and is significant in the anova test. Thus, in model gam2.4, we try to now simplify that model without losing its explained deviance by dropping Syspress as it is not significant and removing smoothing from diapress as its edf close to 1.
+
+We see the deviance is the same. However, in gam2.5 we try to further simplify by removing the now insignifcant weight and height. This model still explains same amount of deviance and is significantly more simple.
+
+
+```{r}
+gam2.4 <- gam(FGm12 ~ s(FGm0) + Treatment + DiaPres + weight + height + te(DiaPres, weight) + te(SysPres, height), data = data)
+summary(gam2.4)
+
+gam2.5 <- gam(FGm12 ~ s(FGm0) + Treatment + DiaPres + te(DiaPres, weight) + te(SysPres, height), data = data)
+summary(gam2.5)
+
+anova(gam1.0, gam2.5, test='F')
+```
+
+This new GAM2.4 has enough evidence to the null hypothesis, and thus is significantly better than the previous best GAM1.0.
+
+
+We look at how GAM2.5 works now using plots. The smoothed FGm0 still captures its nonlinear behavior, and is the only individual smoothing that seemed useful, as DiaPres now seems to be linearly representable. The interactions between DiaPres and the weight and height variables clearly show how their effect clearly depends on the pressure. This is most noticeable for the height one, where the  height threshold for having a negative influence is lower the greater the pressure is. The interaction between height and weight also shows a similar behaviour, where the contribution is zero as long as a certain ratio is kept between the two, but becomes positive or negative when deviations from this ratio occur.
+
+```{r}
+plot(gam2.4,residuals=TRUE, shade=TRUE, cex=2, lwd=2)
+```
+
+The results are even more satisfactory now, and this is most noticeable in the response vs fitted values and residuals vs linear predictor, where they both seem to indicate better adjusting to the data, expecially for extreme cases, where the previous best model would tend linger in more average values. The histogram or residuals moreover looks more normal-like.
+
+```{r}
+par(mfrow=c(2,2))
+gam.check(gam2.5)
+```
+
+To show why having a smoothing factor on FGm0 is so important, but not on DiaPres, we plot the following vis plot showing their interaction in the model. although a slight curve in visible in the diapress case, we can see a linear approach would capture is tendencies quite well while decreasing model complexity. The GFm0 case on the other hand would never be able to be represented with a linear approach.
+
+```{r}
+vis.gam(gam2.2,view=c("FGm0","DiaPres"),
+        theta = -40, phi = 10, r = sqrt(3), d = 1)
+```
+
+From the initial inspection, it appeared that FGm0 showed slightly different behaviours depending on the treatment plan. In order to account for this, we will attempt to modify the previous model by allowing different smoothings of this variable for each treatment (numerical - factor interaction):
+
+```{r}
+gam3.1 <- gam(FGm12 ~ s(FGm0, by=Treatment) + Treatment + DiaPres + te(DiaPres, weight) + te(SysPres, height), data = data)
+summary(gam3.1)
+anova(gam2.5,gam3.1,test='F')
+```
+
+There is extensive evidence this distinction on FGm0 across treatments is crucial in optimizing the performance, and thus this is our new ideal model. as it also obtains the lowest deviance by a wide margin, even compared to every single other model we have tried. An anova test with gam2.5 confirms that gam3.1 is indeed the best model.
+
+It can be seen that it has the closest residuals to the horizontal 0 line, and the response vs fitted seems to closely follow the diagonal, indicating this model's great fit to the data.
+
+```{r}
+gam.final <- gam3.1
+par(mfrow=c(2,2))
+gam.check(gam.final)
+```
+To conclude, we will analyze how this model uses the features to determine the target variable.
+
+In order to understand how the Ferriman-Gallwey is determined according the the individual's data, we will comment on how this particular model has learnt to perform the regression, which will give us valuable insight on the behavior of this condition.
+
+First, looking at the FGm0 plots, it appears that for treatment values 0 and 2, this variable has little effect on the final FG score after 12 months, this being less true the further away the data goes from the median, as there is less data and thus more variance there. For treatment levels 1 and 3, it appears to have a significant effect, which seems to manifest as higher final score the higher the initial one is, but only starting at a threshold of around 20-22, and seemingly having little effect for values smaller than that. This makes sense, as more extreme initial cases might be harder for the treatment to have an effect.
+
+The DiaPres interactions also seem to show how pressure and measures of the body relate to each other, increasing expected final value for both extremes of low diapress and low weight and high diapress and high weight. The same applied for the height - SysPres interaction.
+
+```{r}
+plot(gam.final,residuals=TRUE, shade=TRUE, cex=2, lwd=2)
+```
+
+
+Essentially, the model takes these factors into consideration, in addition to adding FG proportional to baseline weight and dyastolic pressure and mainly reducing risk if any treatment is chosen that is not the 0.
+
+All these factors help us understand how this condition can be caused, tested, and most importantly, cured, as it offers insight on which factors can be changed to alleviate it.
