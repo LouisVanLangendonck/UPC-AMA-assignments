@@ -1,0 +1,65 @@
+---
+title: "08_IML_assignment"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output: html_document
+---
+
+## 0. Data Processing
+
+Loading in data and library. Creating a training sample choosing 700 data at random. The non-chosen data will be the test set.
+
+```{r}
+set.seed(123)
+
+library(readxl)
+concrete <- as.data.frame(read_excel("Concrete_Data.xls"))
+DescVars <- names(concrete)
+names(concrete) <- c("Cement","Slag","FlyAsh","Water","Superplast",
+"CoarseAggr","FineAggr","Age","Strength")
+
+train.rows <- sample(nrow(concrete), 700)
+
+data.train <- concrete[train.rows,]
+data.test <- concrete[-train.rows,]
+
+head(data.test)
+```
+
+## 1. Fit a Random Forest
+
+```{r}
+library(ranger)
+rf.model <- ranger(formula = Strength ~ .,data = data.train, importance='impurity')
+print(rf.model)
+```
+
+```{r}
+library('vip')
+library('gridExtra')
+library('fastshap')
+
+
+pred_fun <- function(object, newdata) {
+  predict(object, newdata)$predictions
+}
+
+rf_imp_vip <- vip(rf.model, num_features = 8)
+rf_perm_vip <- vip(rf.model, num_features = 8)
+rf_shapley <- vip(rf.model, method="shap",
+                  pred_wrapper=pred_fun, num_features = 9,
+                  train = data.train)
+
+grid.arrange(rf_imp_vip, rf_perm_vip, rf_shapley,
+             ncol=2, nrow=2,
+             top="Top left: Impurity. Top right: oob permutations. Bottom left: Shapley values"
+            )
+```
+
+## 2. Fit a linear model and a gam model
+
+## 3. Relevance by Ghost Variables
+
+## 4. Global Importance Measures and Plots using the library DALEX
+
+## 5. Local Explainers with the library DALEX
