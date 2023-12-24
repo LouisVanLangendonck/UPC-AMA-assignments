@@ -10,9 +10,23 @@ output: html_document
 Loading in data and library. Creating a training sample choosing 700 data at random. The non-chosen data will be the test set.
 
 ```{r}
+library('readxl')
+library('ranger')
+library('vip')
+library('gridExtra')
+library('fastshap')
+library('mgcv')
+library('grid')
+library('ggplot2')
+library('DALEX')
+library('lime')
+library('DALEXtra')
+```
+
+
+```{r}
 set.seed(123)
 
-library(readxl)
 concrete <- as.data.frame(read_excel("Concrete_Data.xls"))
 DescVars <- names(concrete)
 names(concrete) <- c("Cement","Slag","FlyAsh","Water","Superplast",
@@ -29,37 +43,272 @@ head(data.test)
 ## 1. Fit a Random Forest
 
 ```{r}
-library(ranger)
-rf.model <- ranger(formula = Strength ~ .,data = data.train, importance='impurity')
-print(rf.model)
-```
+rf.model.impurity <- ranger(formula = Strength ~ .,data = data.train, importance='impurity')
+rf.model.permutation <- ranger(formula = Strength ~ .,data = data.train, importance='permutation')
 
-```{r}
-library('vip')
-library('gridExtra')
-library('fastshap')
-
-
-pred_fun <- function(object, newdata) {
-  predict(object, newdata)$predictions
+pred.fun <- function(object, newdata) {
+  setNames(predict(object, newdata)$predictions, row.names(newdata)) # Exact same format as predict.lm to avoid errors
 }
 
-rf_imp_vip <- vip(rf.model, num_features = 8)
-rf_perm_vip <- vip(rf.model, num_features = 8)
-rf_shapley <- vip(rf.model, method="shap",
-                  pred_wrapper=pred_fun, num_features = 9,
-                  train = data.train)
+set.seed(123)
 
-grid.arrange(rf_imp_vip, rf_perm_vip, rf_shapley,
+rf.imp.vip <- vip(rf.model.impurity, num_features = 8)
+rf.perm.vip <- vip(rf.model.permutation, num_features = 8)
+rf.shapley <- vip(rf.model.impurity, method="shap",
+                  pred_wrapper=pred.fun, num_features = 8,
+                  train = data.train, newdata=data.test[,1:8])
+
+grid.arrange(rf.imp.vip, rf.perm.vip, rf.shapley,
              ncol=2, nrow=2,
              top="Top left: Impurity. Top right: oob permutations. Bottom left: Shapley values"
             )
 ```
 
+
 ## 2. Fit a linear model and a gam model
+
+```{r}
+lm.model <- lm(Strength ~ ., data = data.train)
+summary(lm.model)
+```
+
+```{r}
+gam1 <- gam(Strength ~ s(Cement) + s(Slag) + s(FlyAsh) + s(Water) + s(Superplast) + s(CoarseAggr) + s(FineAggr) + s(Age), data = data.train)
+summary(gam1)
+
+gam2 <- gam(Strength ~ s(Cement) + s(Slag) + s(FlyAsh) + s(Water) + s(Superplast) + CoarseAggr + s(FineAggr) + s(Age), data = data.train)
+summary(gam2)
+
+plot(gam1)
+```
+
+```{r}
+lm.shapley <- vip(lm.model, method="shap",
+                  pred_wrapper=predict.lm,
+                  train=data.train, # train set must be specified
+                  newdata=data.test, 
+                  num_features = 8,
+                  exact=TRUE)
+
+gam.shapley1 <- vip(gam1, method="shap",
+                  pred_wrapper=predict.gam,
+                  train=data.train, # train set must be specified
+                  newdata=data.test[,1:8], 
+                  num_features = 8,
+                  exact=TRUE) 
+
+gam.shapley2 <- vip(gam2, method="shap",
+                  pred_wrapper=predict.gam,
+                  train=data.train, # train set must be specified
+                  newdata=data.test[,1:8], 
+                  num_features = 8,
+                  exact=TRUE) 
+
+grid.arrange(rf.shapley, lm.shapley, gam.shapley1, 
+             gam.shapley2, 
+             ncol=2, nrow=2,
+             top="1,1: Shapley. 1,2: Shapley lm. 2,1: Shapley gam1. 2,2: Shapley gam2"
+)
+```
 
 ## 3. Relevance by Ghost Variables
 
+Note that the Relevant Ghost Variable function provided by the professor does not work on the ranger random forest model. To solve it, two adaptations are made to the function:
+
+1) Now, a user-specified prediction function has to be given (analogous to the vip function) to fix error based on predict.ranger outputs being of a different format than 'predict.lm' and 'predict.gam' etc.
+
+2) in checking the class model for defining the 'term.labels' variable, an extra check for 'class(model)[1]!="ranger"' is added.
+
+```{r}
+source("relev.ghost.var.R")
+
+rf.gv <- relev.ghost.var(model=rf.model.impurity, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                              func.model.ghost.var = lm,
+                              pred.wrapper = pred.fun
+)
+
+plot.relev.ghost.var(rf.gv,n1=500,ncols.plot = 4)
+```
+
+```{r}
+lm.gv <- relev.ghost.var(model=lm.model, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                           func.model.ghost.var = lm,
+                           pred.wrapper = predict.lm
+)
+plot.relev.ghost.var(lm.gv,n1=500,ncols.plot = 4)
+```
+
+```{r}
+gam.gv <- relev.ghost.var(model=gam1, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                           func.model.ghost.var = lm, 
+                           pred.wrapper = predict.gam
+)
+plot.relev.ghost.var(gam.gv,n1=500,ncols.plot = 4)
+```
+
 ## 4. Global Importance Measures and Plots using the library DALEX
 
+```{r}
+explainer_rf <- explain.default(model = rf.model.impurity,  
+                               data = data.test[, -9],
+                               y = data.test[, 9], 
+                               label = "Random Forest")
+```
+
+```{r}
+Rnd_Perm <- model_parts(
+  explainer_rf,
+  N = NULL, # All available data are used
+  B = 10   # number of permutations to be used, with B = 10 used by default
+)
+
+Rnd_Perm
+plot(Rnd_Perm)
+```
+
+```{r}
+aux.plot <- plot(Rnd_Perm)
+dropout_loss.y <- Rnd_Perm$dropout_loss[1]
+aux.I <- order(-aux.plot$data$dropout_loss.x)
+rf_perm_DALEX_as_vi <- tibble::tibble(aux.plot$data[aux.I,c(2,4)])
+class(rf_perm_DALEX_as_vi) <- c("vi", class(rf_perm_DALEX_as_vi))
+names(rf_perm_DALEX_as_vi) <- c("Variable", "Importance")
+rf_perm_DALEX_as_vi$Importance <- 
+  rf_perm_DALEX_as_vi$Importance - dropout_loss.y
+
+# Creating the ggpolt: 
+rf.perm.DALEX.vip <- vip(rf_perm_DALEX_as_vi)
+
+grid.arrange(rf.imp.vip, rf.perm.vip,
+             rf.perm.DALEX.vip, ncol=2, nrow=2,
+             top="Top left: Impurity. Top right: oob permutations. Bottom left: test sample permutations"
+             )
+```
+
+```{r}
+# ?model_profile
+PDP_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "partial" #  partial, conditional or accumulated
+)
+
+plot(PDP_rf, facet_ncol=2)
+```
+
+```{r}
+CDP_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "conditional" #  partial, conditional or accumulated
+)
+
+plot(CDP_rf, facet_ncol=2)
+```
+
+```{r}
+ALE_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "accumulated" #  partial, conditional or accumulated
+)
+
+plot(ALE_rf, facet_ncol=2)
+```
+
 ## 5. Local Explainers with the library DALEX
+
+```{r}
+point.min.strength <- data.test[which.min(data.test[,9]),-9]
+point.max.strength <- data.test[which.max(data.test[,9]),-9]
+
+shap.rf.min <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.min.strength,
+                            type = "shap")
+
+plot(shap.rf.min)
+
+shap.rf.max <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.max.strength,
+                            type = "shap")
+
+plot(shap.rf.max)
+```
+
+```{r}
+bd.rf.min <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.min.strength,
+                            type = "break_down")
+
+plot(bd.rf.min)
+
+bd.rf.max <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.max.strength,
+                            type = "break_down")
+
+plot(bd.rf.max)
+```
+
+Because the 'DALEXtra' package was built under another version of R, the following function for lime-like analysis does not work anymore. 
+
+```{r}
+#lime_rf <- predict_surrogate(explainer = explainer_rf,  DOES NOT WORK
+                  #new_observation = data.test[,-9], 
+                  #type = "localModel") 
+                  #type = "iml") # it does not work
+                  #n_features = 6, 
+                  #n_permutations = 1000,
+                  #type = "lime") # it does not work
+```
+
+Therefore we have the following solution. This is a special package that does LIME analysis. BLABLA
+
+```{r}
+explainer.rf.lime <- lime(data.test, rf.model.impurity)
+lime.explain.min <- lime::explain(point.min.strength, explainer.rf.lime, n_features = 5)
+plot_features(lime.explain.min)
+lime.explain.max <- lime::explain(point.max.strength, explainer.rf.lime, n_features = 5)
+plot_features(lime.explain.max)
+```
+
+
+```{r}
+ice.rf.min <- predict_profile(explainer = explainer_rf, 
+                           new_observation = point.min.strength)
+plot(ice.rf.min, facet_ncol=3)
+
+ice.rf.max <- predict_profile(explainer = explainer_rf, 
+                           new_observation = point.max.strength)
+plot(ice.rf.max, facet_ncol=3)
+```
+
+```{r}
+mp_rf <- model_profile(explainer = explainer_rf,
+  variables = "Age",
+  N = NULL, #All observations in test_set
+  type = "partial"
+)
+
+?model_profile()
+
+plot(mp_rf, geom = "profiles") +  
+  ggtitle("Ceteris-paribus and partial-dependence profiles for Age") 
+```
