@@ -2,7 +2,9 @@
 title: "08_IML_assignment"
 author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
 date: "`r format(Sys.time(), '%d/%b/%Y')`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ## 0. Data Processing
@@ -110,6 +112,22 @@ grid.arrange(rf.shapley, lm.shapley, gam.shapley1,
              top="1,1: Shapley. 1,2: Shapley lm. 2,1: Shapley gam1. 2,2: Shapley gam2"
 )
 ```
+
+1. **Consistency in Top Three Parameters:**
+   - The fact that the top three important parameters are consistent across all three models suggests that these variables have a strong influence on model predictions regardless of the modeling approach. This consistency provides confidence in the importance of these features.
+
+2. **Differences in Second Most Important Parameter:**
+   - The difference in the second most important parameter indicates that the models attribute varying levels of significance to this particular feature. This could be due to the nature of the data and the specific relationships captured by each model.
+
+3. **Variability in Other Parameters:**
+   - The variations in importance of other parameters highlight the divergent feature importance assessments made by different models. This could be because of the complexity captured by GAM models, which allow for more flexible relationships between variables compared to the linear model.
+
+4. **Importance of "CoarseAggr" and "Water":**
+   - The shift in importance for "CoarseAggr" between `gam2` and the linear model may indicate that the relationship of this variable with the response is better captured or more emphasized in `gam2`. Similarly, the absence of "water" among the top three important parameters in any of the models suggests that this variable might not have a strong impact on the predictions in these particular models.
+
+5. **Lower Maximum Importance Values in Initial Values:**
+   - The lower maximum importance values in the initial values compared to the three models might be due to the Shapley values being normalized or scaled. This scaling is often applied to ensure that the sum of Shapley values across all features equals the model's output for a given instance.
+
 
 ## 3. Relevance by Ghost Variables
 
@@ -253,6 +271,11 @@ shap.rf.max <- predict_parts(explainer = explainer_rf,
 plot(shap.rf.max)
 ```
 
+**SHAP Analysis Summary:**
+
+The SHAP analysis reveals both consistencies and divergences in feature importance between max and min strength. The similar order of importance magnitudes indicates stability in the overall influence of features. However, the inversion and discrepancy in contribution magnitudes highlight nuanced variations in how specific features impact predictions based on the strength context. The divergent directions of contributions underscore the model's differential response to features when predicting max and min strength. Understanding these patterns can provide deeper insights into how the model perceives and weighs different factors under different strength conditions.
+
+
 ```{r}
 bd.rf.min <- predict_parts(explainer = explainer_rf,
                  new_observation = point.min.strength,
@@ -267,6 +290,10 @@ bd.rf.max <- predict_parts(explainer = explainer_rf,
 plot(bd.rf.max)
 ```
 
+**Summary:**
+The observed variations in the breakdown profile between max strength and min strength underscore the model's sensitivity to different conditions, emphasizing the need for a careful analysis of each feature's contribution based on the prediction context. The substantial difference in the overall prediction value reinforces the notion that the model responds differently to scenarios of maximum and minimum strength. A thorough analysis of these differences can yield valuable insights into understanding the model and its behavior in specific situations.
+
+
 Because the 'DALEXtra' package was built under another version of R, the following function for lime-like analysis does not work anymore. 
 
 ```{r}
@@ -279,7 +306,7 @@ Because the 'DALEXtra' package was built under another version of R, the followi
                   #type = "lime") # it does not work
 ```
 
-Therefore we have the following solution. This is a special package that does LIME analysis. BLABLA
+Therefore we have the following solution. This is a special package that does LIME analysis. 
 
 ```{r}
 explainer.rf.lime <- lime(data.test, rf.model.impurity)
@@ -288,6 +315,8 @@ plot_features(lime.explain.min)
 lime.explain.max <- lime::explain(point.max.strength, explainer.rf.lime, n_features = 5)
 plot_features(lime.explain.max)
 ```
+
+The consistency in the order of contributions in absolute values suggests stability in how features contribute to the model predictions. This can enhance confidence in the role of these features in the model, regardless of variations in the target variable "Strength."
 
 
 ```{r}
