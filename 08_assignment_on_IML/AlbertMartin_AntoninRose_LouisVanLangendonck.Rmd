@@ -112,8 +112,12 @@ plot(gam.model)
 We will now apply the previously discussed shapley method to the linear model and the gam-model, given its model-agnostic. In a plot we compare the results to the two random forest models. 
 
 From the results, it becomes clear the model value the variables differently. Some of the most significant differences are:
-- between the RF, lm and gam-model, the top four is in different order and contains different variables. - Slag is considered important in both the lm and the gam model, less in the RF models. 
-- The GAM-model is slightly closer in behaviour to the RF model than the LM model, strengthening our argument that the linear model might suffer from not capturing the complexity of the data, hence not being able to value the variables sufficiently. The gam-model suffers less from this. 
+
+- between the RF, lm and gam-model, the top four is in different order and contains different variables.
+
+- Slag is considered important in both the lm and the gam model, less in the RF models. 
+
+- The GAM-model is slightly closer in behaviour to the RF model than the LM model, strengthening our argument that the linear model might suffer from not capturing the complexity of the data, hence not being able to value the variables sufficiently. The gam-model suffers less from this.
 
 ```{r}
 lm.shapley <- vip(lm.model, method="shap",
@@ -289,8 +293,12 @@ plot(ALE_rf, facet_ncol=2)
 ## 5. Local Explainers with the library DALEX
 
 Now local explainers are explored. These are methods to explain predictions of singular data points. For these data points we use the point resulting in the lowest strength in the test set and the highest strength in the test set. The first method explored is the SHAP (SHapley Additive exPlanations) method. The results are similar to what we saw in the variable importance and ALE-plot:
+
 - Data points are mostly predicted based on age, cement, water and superplast (in that order)
+
 - Strong Strength data point are high in age (strong predictor), have a low value for Cement, higher water values, lower superplast values. For the Weak Strength its vice versa. etc. Note that is important to look at the value of the variable, not at the color or direction of the bar when comparing values for both plots. 
+
+- The similar order of importance magnitudes indicates stability in the overall influence of features. However, the inversion and discrepancy in contribution magnitudes highlight nuanced variations in how specific features impact predictions based on the strength context. The divergent directions of contributions underscore the model's differential response to features when predicting max and min strength. Understanding these patterns can provide deeper insights into how the model perceives and weighs different factors under different strength conditions.
 
 ```{r}
 point.min.strength <- data.test[which.min(data.test[,9]),-9]
@@ -309,7 +317,8 @@ shap.rf.max <- predict_parts(explainer = explainer_rf,
 plot(shap.rf.max)
 ```
 
-Now break-down profiles are explored, which also show how each variables contributed to the prediction. The exact same conclusions as in the SHAP method can be made. 
+Now break-down profiles are explored, which also show how each variables contributed to the prediction. 
+The observed variations in the breakdown profile between max strength and min strength underscore the model's sensitivity to different conditions, emphasizing the need for a careful analysis of each feature's contribution based on the prediction context. The substantial difference in the overall prediction value reinforces the notion that the model responds differently to scenarios of maximum and minimum strength. A thorough analysis of these differences can yield valuable insights into understanding the model and its behavior in specific situations.
 
 ```{r}
 bd.rf.min <- predict_parts(explainer = explainer_rf,
