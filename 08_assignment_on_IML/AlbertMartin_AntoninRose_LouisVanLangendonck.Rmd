@@ -1,0 +1,374 @@
+---
+title: "08_IML_assignment"
+author: "Louis Van Langendonck & Antonin Rosa & Albert Martín"
+date: "`r format(Sys.time(), '%d/%b/%Y')`"
+output: html_document
+---
+
+## 0. Data Processing
+
+Loading in libraries that will be used.
+
+```{r}
+library('readxl')
+library('ranger')
+library('vip')
+library('grid')
+library('gridExtra')
+library('fastshap')
+library('mgcv')
+library('grid')
+library('ggplot2')
+library('DALEX')
+library('lime')
+library('DALEXtra')
+```
+
+Loading in data and creating a training sample choosing 700 data at random. The non-chosen data will be the test set.
+
+```{r}
+set.seed(123) #to reproduce random sampling
+
+concrete <- as.data.frame(read_excel("Concrete_Data.xls"))
+DescVars <- names(concrete)
+names(concrete) <- c("Cement","Slag","FlyAsh","Water","Superplast",
+"CoarseAggr","FineAggr","Age","Strength")
+
+train.rows <- sample(nrow(concrete), 700)
+
+data.train <- concrete[train.rows,]
+data.test <- concrete[-train.rows,]
+
+head(data.test)
+```
+
+## 1. Fit a Random Forest
+
+We are fitting two types of Random Forest models using the 'Ranger' package:
+- The first sets its variable importance mode on 'impurity', indicating that node impurity measure improvement (also known as split-criterion) is used when evaluating variable importance. 
+- The second uses 'Out-of-bag perumutation' for variable importance. It comprises of randomly permuting the values of each predictor in the out-of-bag samples to measure the decrease in accuracy. High decrease equals important variable!
+
+```{r}
+set.seed(123)
+
+rf.model.impurity <- ranger(formula = Strength ~ .,data = data.train, importance='impurity')
+rf.model.permutation <- ranger(formula = Strength ~ .,data = data.train, importance='permutation')
+
+pred.fun <- function(object, newdata) {
+  setNames(predict(object, newdata)$predictions, row.names(newdata)) # Exact same format as predict.lm to avoid errors
+}
+```
+
+Using the 'vip' function we can calculate the variable importances based on each models respective method. Next, also using the 'vip' function, we use the shapley-method for variable importance on both models. This is a model-agnostic method that uses theory from cooporative games to find a metric to measure variable contribution to the R-squared score of the model. We apply the method on both models as they are different due to the stochastic component of Random Forest models.
+
+```{r}
+rf.imp.vip <- vip(rf.model.impurity, num_features = 8)
+rf.perm.vip <- vip(rf.model.permutation, num_features = 8)
+rf.imp.shapley <- vip(rf.model.impurity, method="shap",
+                  pred_wrapper=pred.fun, num_features = 8,
+                  train = data.train, newdata=data.test[,1:8])
+rf.perm.shapley <- vip(rf.model.impurity, method="shap",
+                  pred_wrapper=pred.fun, num_features = 8,
+                  train = data.train, newdata=data.test[,1:8])
+```
+
+Now we visualize all these four methods for variable importance in a single plot. Comparing the random-forest-specific methods at the top, impurity and permutations, we see both methods agree on the top four most important variables. Afterwords small differences can be found in the ordering. However, they both agree that the differences in variable importance between the bottom four variables is not that big such that small changes in importance can quickly lead to changes in ranking. 
+
+Now looking at the model-agnostic shapley method results at the bottom, we see that both models agree except for interchanging Slag and FineAggr. These differences are due to random effects in building the Random Forest models. Comparing this method to the model-specific methods at the top, we again see that the top four variables are agreed upon, further strengthening the case that this is indeed the case. The bottom four variables show minor differences.
+
+```{r}
+grid.arrange(rf.imp.vip, rf.perm.vip, rf.imp.shapley, rf.perm.shapley,
+             ncol=2, nrow=2,
+             top=textGrob("Top left: Impurity. Top right: oob permutations. Bottom left: Shapley values Impurity. Bottom right: Shapley values oob permutations", gp=gpar(fontsize=9,font=3)))
+```
+
+## 2. Fit a linear model and a gam model
+
+A simple, unoptimized linear model (lm) is trained using all covariates available. A numerical model summary is shown. 
+
+We notice that FineAggr is not considered a significant predictor in this model which seems to indicate that this covariate plays a less important role in this model than in the random forest ones (where FineAggr is never at the bottom). The CoarseAggr variable, most often considered the least important in the RF-models, is on the edge of significant in this model summary. Maybe most different, is the Water variable that is barely significant in the linear model summary but seems very important in the Random Forest one. 
+
+A first intuitive reason for this behavior might be that the linear model is not suited to handle all the non-linear data and thus can't correctly value some variables like Water that, as we will see in the gam-model plots below, shows significantly non-linear behavior and needs smoothing or more complex models like Random Forest. 
+
+All these conclusions will be further discussed when variable importance is explicitly calculated for this model.
+
+```{r}
+lm.model <- lm(Strength ~ ., data = data.train)
+summary(lm.model)
+```
+
+A simple, unoptimized generalized additive model (gam) is trained using all covariates available and all smoothed separately. A numerical model summary is shown. Moreover, to gain insight into variable behavior, these variables and their smoothing is plotted. All variables are considered significant from this summary except CoarseAggr, which moreover does not benefit from the smoothing due to its very linear behaviour (edf = 1 and plot is very linear). 
+
+This behaviour is more similar to the RF models where most often, coarseAggr was considered the least important. This might be because of the gam-method capturing the models complexity way better than the lm one, as it is very clear from the plots that each variable except CoareAggr needs a non-linear treatment.
+
+All these conclusions will be further discussed when variable importance is explicitly calculated for this model.
+
+```{r}
+gam.model <- gam(Strength ~ s(Cement) + s(Slag) + s(FlyAsh) + s(Water) + s(Superplast) + s(CoarseAggr) + s(FineAggr) + s(Age), data = data.train)
+summary(gam.model)
+plot(gam.model)
+```
+
+We will now apply the previously discussed shapley method to the linear model and the gam-model, given its model-agnostic. In a plot we compare the results to the two random forest models. 
+
+From the results, it becomes clear the model value the variables differently. Some of the most significant differences are:
+- between the RF, lm and gam-model, the top four is in different order and contains different variables. - Slag is considered important in both the lm and the gam model, less in the RF models. 
+- The GAM-model is slightly closer in behaviour to the RF model than the LM model, strengthening our argument that the linear model might suffer from not capturing the complexity of the data, hence not being able to value the variables sufficiently. The gam-model suffers less from this. 
+
+```{r}
+lm.shapley <- vip(lm.model, method="shap",
+                  pred_wrapper=predict.lm,
+                  train=data.train,
+                  newdata=data.test, 
+                  num_features = 8,
+                  exact=TRUE)
+
+gam.shapley <- vip(gam.model, method="shap",
+                  pred_wrapper=predict.gam,
+                  train=data.train,
+                  newdata=data.test[,1:8], 
+                  num_features = 8,
+                  exact=TRUE) 
+
+grid.arrange(rf.imp.shapley, rf.perm.shapley, lm.shapley, gam.shapley,
+             ncol=2, nrow=2,
+             top="1.1: Impurity RF Shapley. 1.2: Permutation RF Shapley, 1.2: Shapley lm, 2.1: Shapley gam"
+)
+```
+
+## 3. Relevance by Ghost Variables
+
+Now we apply another model-agnostic variable importance technique to each of the four models: Ghost Variables. This method is similar to random permutations (where variable Z in the test set is replaced by random permutations of it and difference in predictive performance is analyzed) except for that now Z is replaced by E(Z/X). In the function we will use, this last quanitity can be calculated using a linear model using either lm's or gam's. We will use gam's since the variables are very non-linear (see the plots of the gam fit).
+
+Note that the Relevant Ghost Variable function provided by the professor does not work on the ranger random forest model. To solve it, two adaptations are made to the function:
+
+1) Now, a user-specified prediction function has to be given (analogous to the vip function) to fix error based on predict.ranger outputs being of a different format than 'predict.lm' and 'predict.gam' etc.
+
+2) in checking the class model for defining the 'term.labels' variable, an extra check for 'class(model)[1]!="ranger"' is added.
+
+Now that the function is functioning, we will proceed to use it first on the RF impurity model. From the results we see age is by far the most relevant variable, analogous to previous methods but the proportion of its relevance is different. The biggest difference seems to be that in this method the Water variable is considered less important than in the shapley value or impurity method.
+
+```{r}
+source("relev.ghost.var.R")
+
+rf.imp.gv <- relev.ghost.var(model=rf.model.impurity, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                              func.model.ghost.var = gam,
+                              pred.wrapper = pred.fun
+)
+
+plot.relev.ghost.var(rf.imp.gv,n1=500,ncols.plot = 4)
+```
+
+For the permutation random forest model, the same conclusions as the impurity one can be made.
+
+```{r}
+rf.perm.gv <- relev.ghost.var(model=rf.model.permutation, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                              func.model.ghost.var = gam,
+                              pred.wrapper = pred.fun
+)
+
+plot.relev.ghost.var(rf.perm.gv,n1=500,ncols.plot = 4)
+```
+
+Applying the relevant ghost variable method on the linear model and comparing it to the shapley method results we conclude that the methods do not agree. Age is considered way more significant in this method than in the shapley one. Though, the rest of the ranking is closer to the shapley-method. 
+
+```{r}
+lm.gv <- relev.ghost.var(model=lm.model, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                           func.model.ghost.var = gam,
+                           pred.wrapper = predict.lm
+)
+plot.relev.ghost.var(lm.gv,n1=500,ncols.plot = 4)
+```
+
+Applying the relevant ghost variable method on the gam-model and comparing it to the shapley method results we conclude that the methods again do not agree. Again, age is considered way more significant in this method than in the shapley one. Even the rest of the ranking is not close to the shapley-method (flyash being second most relevant etc.).
+
+```{r}
+gam.gv <- relev.ghost.var(model=gam.model, 
+                              newdata = data.test[, -9],
+                              y.ts = data.test[, 9],
+                           func.model.ghost.var = lm, 
+                           pred.wrapper = predict.gam
+)
+plot.relev.ghost.var(gam.gv,n1=500,ncols.plot = 4)
+```
+
+## 4. Global Importance Measures and Plots using the library DALEX
+
+Now we will use the DALEX library for further global importance measures. We will use the (impurity) random forest model from now on to limit the scope and size of the project. 
+
+```{r}
+explainer_rf <- explain.default(model = rf.model.impurity,  
+                               data = data.test[, -9],
+                               y = data.test[, 9], 
+                               label = "Random Forest")
+```
+
+Here we compute the Variable Importance of Random permutations and compare it to all other RF variable iportance methods explored except for the ghost varibles one. We see that all methods agree in the top four most important variables. Small differences can be found in the variables afterwords but generally we can conclude the random permutation method more or less agrees with the others. 
+
+```{r}
+Rnd_Perm <- model_parts(
+  explainer_rf,
+  N = NULL, # All available data are used
+  B = 10   # number of permutations to be used, with B = 10 used by default
+)
+plot(Rnd_Perm)
+
+aux.plot <- plot(Rnd_Perm)
+dropout_loss.y <- Rnd_Perm$dropout_loss[1]
+aux.I <- order(-aux.plot$data$dropout_loss.x)
+rf_perm_DALEX_as_vi <- tibble::tibble(aux.plot$data[aux.I,c(2,4)])
+class(rf_perm_DALEX_as_vi) <- c("vi", class(rf_perm_DALEX_as_vi))
+names(rf_perm_DALEX_as_vi) <- c("Variable", "Importance")
+rf_perm_DALEX_as_vi$Importance <- 
+  rf_perm_DALEX_as_vi$Importance - dropout_loss.y
+
+# Creating the ggpolt: 
+rf.perm.DALEX.vip <- vip(rf_perm_DALEX_as_vi)
+
+grid.arrange(rf.imp.vip, rf.perm.vip, rf.imp.shapley,
+             rf.perm.DALEX.vip, ncol=2, nrow=2,
+             top=textGrob("Top left: Impurity. Top right: oob permutations. bottom left: Shapley method, Bottom right: test sample permutations", gp=gpar(fontsize=9,font=3)))
+```
+
+Now a Partial Dependence profile is plotted. Intuitively for each varibles, it represents the average (over all test set data) of the predictions of the model using each possible value in the allowed range of the variable under question. The result is plotted below. The most interesting thing is shows seems to be to confirm the low predictive power of the CoarseAggr variable (quite horizontal) and the seemingly strong predictive powers of cement and water. 
+
+However, note that this method is not sufficient to deal with collinearity in the covariates. 
+
+```{r}
+PDP_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "partial" #  partial, conditional or accumulated
+)
+
+plot(PDP_rf, facet_ncol=2)
+```
+
+The conditional method tries to tackle to collinearity problem (however does typically not really succeed as it introduces the ommitted variable problem). However its results are plotted below and show similar results except for the seemingly now more sensitive CoarseAggr variable.
+
+```{r}
+CDP_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "conditional" #  partial, conditional or accumulated
+)
+
+plot(CDP_rf, facet_ncol=2)
+```
+
+The method that deals best with the aforementioned problems is the Accumulated Local Effect Plots, which essentially takes partial derivatives to remove collinearity effects and reintegrates to get a better dependance profile. The results seem to align the closest to the variables importance plots we observed before, with the most important variables showing distinct, non-horizontal profiles and vice-versa. The ALE-plot therefore indeed seems the best option.
+
+```{r}
+ALE_rf <- model_profile(
+  explainer=explainer_rf,
+  variables = NULL,  # All variables are used
+  N = NULL, # All available data are used
+  groups = NULL,
+  k = NULL,
+  center = TRUE,
+  type = "accumulated" #  partial, conditional or accumulated
+)
+
+plot(ALE_rf, facet_ncol=2)
+```
+
+## 5. Local Explainers with the library DALEX
+
+Now local explainers are explored. These are methods to explain predictions of singular data points. For these data points we use the point resulting in the lowest strength in the test set and the highest strength in the test set. The first method explored is the SHAP (SHapley Additive exPlanations) method. The results are similar to what we saw in the variable importance and ALE-plot:
+- Data points are mostly predicted based on age, cement, water and superplast (in that order)
+- Strong Strength data point are high in age (strong predictor), have a low value for Cement, higher water values, lower superplast values. For the Weak Strength its vice versa. etc. Note that is important to look at the value of the variable, not at the color or direction of the bar when comparing values for both plots. 
+
+```{r}
+point.min.strength <- data.test[which.min(data.test[,9]),-9]
+point.max.strength <- data.test[which.max(data.test[,9]),-9]
+
+shap.rf.min <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.min.strength,
+                            type = "shap")
+
+plot(shap.rf.min)
+
+shap.rf.max <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.max.strength,
+                            type = "shap")
+
+plot(shap.rf.max)
+```
+
+Now break-down profiles are explored, which also show how each variables contributed to the prediction. The exact same conclusions as in the SHAP method can be made. 
+
+```{r}
+bd.rf.min <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.min.strength,
+                            type = "break_down")
+
+plot(bd.rf.min)
+
+bd.rf.max <- predict_parts(explainer = explainer_rf,
+                 new_observation = point.max.strength,
+                            type = "break_down")
+
+plot(bd.rf.max)
+```
+
+Now the LIME (Local Interpretable Model-agnostic Explanations) method is used. It should describe the model locally using a simple model using a subselection of the features. We however note only the 'localModel' method implementation can be used that does not seem to care about the n_features value. 
+
+The results of this localModel shows that locally, the age variable does not seem to important! This can maybe be explained by the ALE-plot that shows that the age variable shows very little differences once in the high strength range but should be more prevelant in the low strength case than seen in the analysis. However, the other predictors seem to follow what we observed earlier.
+
+```{r}
+set.seed(123)
+
+lime.rf.min <- predict_surrogate(explainer = explainer_rf,
+                  new_observation = point.min.strength,
+                  type = "localModel")
+                  #n_features = 4, #Default value, does not change results!
+plot(lime.rf.min)
+
+lime.rf.max <- predict_surrogate(explainer = explainer_rf,
+                  new_observation = point.max.strength,
+                  type = "localModel")
+                  #n_features = 4, #Default value, does not change results!
+plot(lime.rf.max)
+```
+
+Now a local graphical method called ICE (Individual Conditional Expectation) is explored. it
+shows the relationship between a specific covariate and the response at the individual level, while the PDP does so in an aggregated way. In other words, it does not average the predictions across all data points available in the test set. 
+
+From the results we can see how different each of the variables across its range act different in each of the data points. In the min strength case, the data points seems to always be in the minimum of how the predictive function acts when varying across the range of that variable, keeping the rest constant. The opposite seems true too for the strong data point.
+
+```{r}
+ice.rf.min <- predict_profile(explainer = explainer_rf, 
+                           new_observation = point.min.strength)
+plot(ice.rf.min, facet_ncol=3)
+
+ice.rf.max <- predict_profile(explainer = explainer_rf, 
+                           new_observation = point.max.strength)
+plot(ice.rf.max, facet_ncol=3)
+```
+
+Now, we plot this profile for age for all points in the test set as well as the PDP for that variable (which represents the average of all of them). It shows a very similar profile / behaviour across all points except for vertical translations. The PDP, as expected, indeed seems to be a mean case of all these profiles! 
+
+```{r}
+mp_rf <- model_profile(explainer = explainer_rf,
+  variables = "Age",
+  N = NULL, #All observations in test_set
+  type = "partial"
+)
+
+plot(mp_rf, geom = "profiles") +  
+  ggtitle("Ceteris-paribus and partial-dependence profiles for Age") 
+```
